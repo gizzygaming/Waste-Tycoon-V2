@@ -68,24 +68,24 @@ export const ShopPage = () => {
   const items = category?.items.map(id => ({ id, ...ASSET_DEFS[id] })) || [];
   
   return (
-    <div className="p-6" data-testid="shop-page">
+    <div className="p-3 lg:p-6" data-testid="shop-page">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 lg:gap-4 mb-4 lg:mb-6">
         <div>
-          <h1 className="font-heading text-3xl font-black text-[var(--text-main)]">SHOP</h1>
-          <p className="text-[var(--text-muted)] mt-1">Purchase or lease vehicles, trailers, and containers</p>
+          <h1 className="font-heading text-2xl lg:text-3xl font-black text-[var(--text-main)]">SHOP</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Purchase or lease vehicles, trailers, and containers</p>
         </div>
         
         {/* Depot Selector & Storage */}
-        <div className="flex items-center gap-4">
-          <div>
-            <label className="block text-xs text-[var(--text-muted)] uppercase tracking-widest mb-1">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 lg:gap-4">
+          <div className="flex-1 sm:flex-none">
+            <label className="block text-[10px] lg:text-xs text-[var(--text-muted)] uppercase tracking-widest mb-1">
               Deliver To Depot
             </label>
             <select
               value={selectedDepotId || ''}
               onChange={(e) => setShopDepot(e.target.value)}
-              className="bg-[var(--background)] border border-[var(--border)] text-[var(--text-main)] px-3 py-2 min-w-[200px]"
+              className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--text-main)] px-2 lg:px-3 py-2 text-sm lg:min-w-[200px]"
               data-testid="depot-selector"
             >
               {depots.map((depot) => (
@@ -95,9 +95,9 @@ export const ShopPage = () => {
           </div>
           
           <div className="card">
-            <div className="p-3">
-              <div className="text-xs text-[var(--text-muted)] uppercase">Storage</div>
-              <div className="font-mono text-xl">
+            <div className="p-2 lg:p-3">
+              <div className="text-[10px] lg:text-xs text-[var(--text-muted)] uppercase">Storage</div>
+              <div className="font-mono text-lg lg:text-xl">
                 <span className={storageUsed >= storageMax ? 'text-[var(--danger)]' : 'text-[var(--text-main)]'}>
                   {storageUsed}
                 </span>
@@ -109,50 +109,50 @@ export const ShopPage = () => {
       </div>
       
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 bg-[var(--surface)] p-1">
+      <div className="flex gap-1 lg:gap-2 mb-4 lg:mb-6 bg-[var(--surface)] p-1">
         {Object.entries(SHOP_CATEGORIES).map(([id, { label, icon: Icon }]) => (
           <button
             key={id}
             onClick={() => setShopTab(id)}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1 lg:gap-2 py-2 lg:py-3 transition-colors ${
               currentTab === id
                 ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
                 : 'text-[var(--text-muted)] hover:bg-[var(--surface-highlight)]'
             }`}
             data-testid={`tab-${id}`}
           >
-            <Icon size={18} />
-            <span className="font-bold uppercase">{label}</span>
+            <Icon size={16} />
+            <span className="font-bold uppercase text-xs lg:text-base">{label}</span>
           </button>
         ))}
       </div>
       
       {/* Lease Toggle */}
       {currentTab !== 'containers' && (
-        <div className="flex items-center gap-6 mb-6 p-4 bg-[var(--surface)] border border-[var(--border)]">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 lg:gap-6 mb-4 lg:mb-6 p-3 lg:p-4 bg-[var(--surface)] border border-[var(--border)]">
+          <div className="flex items-center gap-2 lg:gap-3">
             <button
               onClick={() => setLeaseMode(false)}
-              className={`flex items-center gap-2 px-4 py-2 font-bold text-sm transition-colors ${
+              className={`flex items-center gap-1 lg:gap-2 px-3 lg:px-4 py-2 font-bold text-xs lg:text-sm transition-colors ${
                 !leaseMode 
                   ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' 
                   : 'text-[var(--text-muted)] hover:bg-[var(--surface-highlight)]'
               }`}
               data-testid="buy-mode"
             >
-              <DollarSign size={16} />
-              BUY OUTRIGHT
+              <DollarSign size={14} />
+              BUY
             </button>
             <button
               onClick={() => setLeaseMode(true)}
-              className={`flex items-center gap-2 px-4 py-2 font-bold text-sm transition-colors ${
+              className={`flex items-center gap-1 lg:gap-2 px-3 lg:px-4 py-2 font-bold text-xs lg:text-sm transition-colors ${
                 leaseMode 
                   ? 'bg-[var(--secondary)] text-[var(--secondary-foreground)]' 
                   : 'text-[var(--text-muted)] hover:bg-[var(--surface-highlight)]'
               }`}
               data-testid="lease-mode"
             >
-              <CreditCard size={16} />
+              <CreditCard size={14} />
               LEASE
             </button>
           </div>
@@ -188,7 +188,7 @@ export const ShopPage = () => {
       )}
       
       {/* Items Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid gap-3 lg:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {items.map((item) => {
           const canLease = leaseMode && item.leaseDeposit;
           const displayPrice = canLease ? item.leaseDeposit : item.price;
