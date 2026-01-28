@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStore, formatCurrency, STAFF_CONFIG } from '../game/store/useGameStore';
 import { Building, Users, AlertTriangle, Edit2, Check, X, UserPlus, DollarSign, Shield, Warehouse } from 'lucide-react';
 
@@ -17,7 +17,17 @@ export const FacilitiesPage = () => {
   const [showHireMenu, setShowHireMenu] = useState(false);
   const [fireConfirm, setFireConfirm] = useState(null);
   
-  if (!game?.ui?.hasUnlockedGame) {
+  const hasUnlocked = game?.ui?.hasUnlockedGame;
+  const facilities = hasUnlocked ? Object.values(game.facilities.facilities) : [];
+  
+  // Select first facility if none selected - must be before conditional return
+  useEffect(() => {
+    if (hasUnlocked && !selectedFacilityId && facilities.length > 0) {
+      setSelectedFacilityId(facilities[0].id);
+    }
+  }, [hasUnlocked, facilities, selectedFacilityId]);
+  
+  if (!hasUnlocked) {
     return (
       <div className="flex items-center justify-center h-full" data-testid="facilities-locked">
         <div className="text-center">
@@ -29,7 +39,6 @@ export const FacilitiesPage = () => {
     );
   }
   
-  const facilities = Object.values(game.facilities.facilities);
   const selectedFacility = selectedFacilityId ? game.facilities.facilities[selectedFacilityId] : facilities[0];
   const facilityStaff = selectedFacility 
     ? Object.values(game.staff.staff).filter(s => s.facilityId === selectedFacility.id)
@@ -69,13 +78,6 @@ export const FacilitiesPage = () => {
     fireStaff(staffId);
     setFireConfirm(null);
   };
-  
-  // Select first facility if none selected
-  React.useEffect(() => {
-    if (!selectedFacilityId && facilities.length > 0) {
-      setSelectedFacilityId(facilities[0].id);
-    }
-  }, [facilities, selectedFacilityId]);
   
   return (
     <div className="p-6" data-testid="facilities-page">
