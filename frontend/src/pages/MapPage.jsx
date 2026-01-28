@@ -5,9 +5,9 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useGameStore, formatCurrency } from '../game/store/useGameStore';
 import { getBuyableFacilities } from '../game/data/siteGenerator';
-import { MapPin, Building, Truck, Pickaxe, Store, AlertTriangle, X, ChevronRight } from 'lucide-react';
+import { MapPin, Building, Truck, Pickaxe, Store, AlertTriangle, X, ChevronRight, Target, CheckCircle } from 'lucide-react';
 
-// Fix for default marker icons in webpack
+// Fix for default marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -21,28 +21,29 @@ const createIcon = (color, isOwned = false) => {
     className: 'custom-marker',
     html: `
       <div style="
-        width: 24px;
-        height: 24px;
+        width: 28px;
+        height: 28px;
         background: ${isOwned ? '#22C55E' : color};
-        border: 2px solid ${isOwned ? '#16A34A' : '#000'};
+        border: 3px solid ${isOwned ? '#16A34A' : '#000'};
         border-radius: 50% 50% 50% 0;
         transform: rotate(-45deg);
         display: flex;
         align-items: center;
         justify-content: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
       ">
         <div style="
-          width: 8px;
-          height: 8px;
+          width: 10px;
+          height: 10px;
           background: ${isOwned ? '#fff' : '#000'};
           border-radius: 50%;
           transform: rotate(45deg);
         "></div>
       </div>
     `,
-    iconSize: [24, 24],
-    iconAnchor: [12, 24],
-    popupAnchor: [0, -24],
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],
+    popupAnchor: [0, -28],
   });
 };
 
@@ -54,16 +55,6 @@ const SITE_COLORS = {
   construction_site: '#EF4444',
   customer_house: '#A855F7',
   customer_business: '#6366F1',
-};
-
-const SITE_ICONS = {
-  industrial_estate: Building,
-  mechanic: Truck,
-  quarry: Pickaxe,
-  retail_park: Store,
-  construction_site: AlertTriangle,
-  customer_house: MapPin,
-  customer_business: MapPin,
 };
 
 // Component to handle map focus
@@ -85,6 +76,7 @@ export const MapPage = () => {
   const [selectedSize, setSelectedSize] = useState('small');
   const [focusCenter, setFocusCenter] = useState(null);
   const [purchaseError, setPurchaseError] = useState(null);
+  const [filterType, setFilterType] = useState('all');
   
   if (!game) {
     return (
@@ -99,30 +91,23 @@ export const MapPage = () => {
   const hasFirstDepot = Object.keys(game.facilities.depots).length > 0;
   const buyableFacilities = selectedSite ? getBuyableFacilities(selectedSite) : [];
   
+  // Filter sites
+  const filteredSites = Object.values(game.map.sites).filter(site => {
+    if (filterType === 'all') return true;
+    if (filterType === 'depot') return site.kind === 'industrial_estate' && site.tags?.includes('depot_available');
+    if (filterType === 'owned') return game.map.ownedSiteIds[site.id];
+    return site.kind === filterType;
+  });
+  
   const handleBuy = () => {
     if (!selectedSite || !selectedFacility) return;
     
-    // Check first purchase rules
-    if (!hasFirstDepot) {
-      if (selectedFacility.type !== 'transport_depot') {
-        setPurchaseError('Your first purchase must be a Transport Depot');
-        return;
-      }
-      if (selectedSize !== 'small') {
-        setPurchaseError('You must start with a Small depot');
-        return;
-      }
-      if (!selectedSite.tags?.includes('depot_available')) {
-        setPurchaseError('This site does not have depot space available');
-        return;
-      }
-    }
-    
+    setPurchaseError(null);
     const result = buySite(selectedSite.id, selectedFacility.type, selectedSize);
     
     if (result.success) {
-      setPurchaseError(null);
       setSelectedFacility(null);
+      setSelectedSize('small');
     } else {
       setPurchaseError(result.error);
     }
@@ -131,6 +116,7 @@ export const MapPage = () => {
   const handleFocusSelected = () => {
     if (selectedSite) {
       setFocusCenter([selectedSite.lat, selectedSite.lng]);
+      setTimeout(() => setFocusCenter(null), 100);
     }
   };
   
@@ -142,15 +128,43 @@ export const MapPage = () => {
         {!hasFirstDepot && (
           <div className="absolute top-4 left-4 right-4 z-[1000] bg-[var(--primary)] text-[var(--primary-foreground)] p-4 flex items-center gap-3" data-testid="setup-banner">
             <AlertTriangle size={24} />
-            <div>
+            <div className="flex-1">
               <div className="font-heading text-lg font-bold">SETUP REQUIRED</div>
               <div className="text-sm opacity-90">
-                Buy your first Transport Depot on the Map to unlock the game. 
-                Look for Industrial Estates with depot space available.
+                Buy your first Transport Depot (£50,000) from an Industrial Estate to unlock the game.
               </div>
             </div>
+            <button 
+              onClick={() => setFilterType('depot')}
+              className="bg-black/20 hover:bg-black/30 px-4 py-2 font-bold text-sm transition-colors"
+            >
+              SHOW DEPOTS
+            </button>
           </div>
         )}
+        
+        {/* Filter Controls */}
+        <div className="absolute bottom-4 left-4 z-[1000] bg-[var(--surface)] border border-[var(--border)] p-2 flex gap-2">
+          {[
+            { id: 'all', label: 'All' },
+            { id: 'depot', label: 'Depots' },
+            { id: 'industrial_estate', label: 'Industrial' },
+            { id: 'quarry', label: 'Quarries' },
+            { id: 'owned', label: 'Owned' },
+          ].map(f => (
+            <button
+              key={f.id}
+              onClick={() => setFilterType(f.id)}
+              className={`px-3 py-1 text-xs font-bold uppercase transition-colors ${
+                filterType === f.id 
+                  ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' 
+                  : 'text-[var(--text-muted)] hover:bg-[var(--surface-highlight)]'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
         
         <MapContainer
           center={[54.5, -2.5]}
@@ -165,13 +179,10 @@ export const MapPage = () => {
           
           <MapFocuser center={focusCenter} zoom={12} />
           
-          <MarkerClusterGroup
-            chunkedLoading
-            maxClusterRadius={60}
-          >
-            {Object.values(game.map.sites).map((site) => {
+          <MarkerClusterGroup chunkedLoading maxClusterRadius={60}>
+            {filteredSites.map((site) => {
               const isOwnedSite = game.map.ownedSiteIds[site.id];
-              const Icon = SITE_ICONS[site.kind] || MapPin;
+              const isSelected = game.map.selectedSiteId === site.id;
               
               return (
                 <Marker
@@ -187,10 +198,20 @@ export const MapPage = () => {
                   }}
                 >
                   <Popup>
-                    <div className="text-sm">
-                      <strong>{site.name}</strong>
-                      <br />
-                      <span className="text-xs opacity-70">{site.kind.replace(/_/g, ' ')}</span>
+                    <div className="text-sm min-w-[150px]">
+                      <strong className="text-[var(--text-main)]">{site.name}</strong>
+                      <div className="text-xs text-[var(--text-muted)] mt-1">
+                        {site.kind.replace(/_/g, ' ')}
+                      </div>
+                      {site.tags && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {site.tags.map(tag => (
+                            <span key={tag} className="text-[10px] bg-[var(--primary)]/20 text-[var(--primary)] px-1">
+                              {tag.replace(/_/g, ' ')}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </Popup>
                 </Marker>
@@ -215,7 +236,9 @@ export const MapPage = () => {
                     {selectedSite.kind.replace(/_/g, ' ')}
                   </span>
                   {isOwned && (
-                    <span className="badge badge-success">OWNED</span>
+                    <span className="badge badge-success flex items-center gap-1">
+                      <CheckCircle size={10} /> OWNED
+                    </span>
                   )}
                 </div>
                 <div className="text-xs text-[var(--text-muted)] mt-2">
@@ -224,7 +247,7 @@ export const MapPage = () => {
               </div>
               <button
                 onClick={() => selectSite(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
                 data-testid="close-panel"
               >
                 <X size={20} />
@@ -235,7 +258,7 @@ export const MapPage = () => {
             {selectedSite.tags && selectedSite.tags.length > 0 && (
               <div className="p-4 border-b border-[var(--border)]">
                 <div className="text-xs text-[var(--text-muted)] uppercase tracking-widest mb-2">
-                  Available
+                  Available Features
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {selectedSite.tags.map((tag) => (
@@ -256,12 +279,12 @@ export const MapPage = () => {
                 
                 {/* First depot requirement notice */}
                 {!hasFirstDepot && (
-                  <div className="bg-[var(--background)] border border-[var(--primary)] p-3 mb-4">
-                    <div className="text-[var(--primary)] font-bold text-sm mb-1">
-                      FIRST PURCHASE
+                  <div className="bg-[var(--background)] border-2 border-[var(--primary)] p-3 mb-4">
+                    <div className="text-[var(--primary)] font-bold text-sm mb-1 flex items-center gap-2">
+                      <Target size={16} /> FIRST PURCHASE
                     </div>
                     <div className="text-xs text-[var(--text-muted)]">
-                      You must buy a Small Transport Depot from an industrial estate to start your business.
+                      You must buy a <strong className="text-[var(--text-main)]">Small Transport Depot</strong> to start your business.
                     </div>
                   </div>
                 )}
@@ -276,10 +299,10 @@ export const MapPage = () => {
                     return (
                       <div
                         key={facility.type}
-                        className={`card cursor-pointer transition-colors duration-150 ${
-                          isSelected ? 'border-[var(--primary)]' : ''
-                        } ${!isValidFirstPurchase ? 'opacity-50' : ''}`}
-                        onClick={() => isValidFirstPurchase && setSelectedFacility(facility)}
+                        className={`card cursor-pointer transition-all duration-150 ${
+                          isSelected ? 'border-[var(--primary)] bg-[var(--primary)]/5' : ''
+                        } ${!isValidFirstPurchase ? 'opacity-40 cursor-not-allowed' : 'hover:border-[var(--muted)]'}`}
+                        onClick={() => isValidFirstPurchase && setSelectedFacility(isSelected ? null : facility)}
                         data-testid={`facility-option-${facility.type}`}
                       >
                         <div className="p-3">
@@ -327,10 +350,17 @@ export const MapPage = () => {
                               {/* Price */}
                               <div className="flex justify-between items-center pt-2 border-t border-[var(--border)]">
                                 <span className="text-xs text-[var(--text-muted)]">Price</span>
-                                <span className="font-mono text-lg font-bold text-[var(--primary)]">
+                                <span className="font-mono text-xl font-bold text-[var(--primary)]">
                                   {formatCurrency(facility.prices[selectedSize])}
                                 </span>
                               </div>
+                              
+                              {/* Cash check */}
+                              {game.company.cash < facility.prices[selectedSize] && (
+                                <div className="text-xs text-[var(--danger)]">
+                                  Insufficient funds (need {formatCurrency(facility.prices[selectedSize] - game.company.cash)} more)
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -345,7 +375,9 @@ export const MapPage = () => {
             {isOwned && (
               <div className="flex-1 p-4">
                 <div className="bg-[var(--success)]/10 border border-[var(--success)] p-4">
-                  <div className="text-[var(--success)] font-bold">OWNED</div>
+                  <div className="text-[var(--success)] font-bold flex items-center gap-2">
+                    <CheckCircle size={18} /> OWNED
+                  </div>
                   <div className="text-sm text-[var(--text-muted)] mt-1">
                     You own a facility at this location. View it in Facilities.
                   </div>
@@ -359,7 +391,7 @@ export const MapPage = () => {
                 <div className="bg-[var(--border)]/20 border border-[var(--border)] p-4">
                   <div className="text-[var(--text-muted)]">No facilities available</div>
                   <div className="text-xs text-[var(--muted)] mt-1">
-                    This location does not have any purchasable facilities.
+                    This location cannot be purchased.
                   </div>
                 </div>
               </div>
@@ -379,16 +411,18 @@ export const MapPage = () => {
                 className="btn-secondary w-full"
                 data-testid="focus-selected"
               >
-                Focus Selected
+                <Target size={16} className="inline mr-2" />
+                Focus on Map
               </button>
               
               {!isOwned && selectedFacility && (
                 <button
                   onClick={handleBuy}
-                  className="btn-primary w-full"
+                  disabled={game.company.cash < selectedFacility.prices[selectedSize]}
+                  className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
                   data-testid="buy-button"
                 >
-                  BUY {selectedFacility.type.replace(/_/g, ' ').toUpperCase()} - {formatCurrency(selectedFacility.prices[selectedSize])}
+                  BUY FOR {formatCurrency(selectedFacility.prices[selectedSize])}
                 </button>
               )}
             </div>
@@ -398,10 +432,10 @@ export const MapPage = () => {
             <div className="text-center">
               <MapPin size={48} className="mx-auto mb-4 text-[var(--muted)]" />
               <div className="text-[var(--text-muted)]">
-                Select a site on the map to view details
+                Select a site on the map
               </div>
               <div className="text-xs text-[var(--muted)] mt-2">
-                Click on any marker to see available facilities
+                Click any marker to view details and purchase
               </div>
             </div>
           </div>

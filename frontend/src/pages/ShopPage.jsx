@@ -1,27 +1,23 @@
 import React, { useState } from 'react';
-import { useGameStore, formatCurrency } from '../game/store/useGameStore';
-import { ShoppingCart, Car, Truck, Package, Settings, AlertTriangle, Check } from 'lucide-react';
+import { useGameStore, formatCurrency, ASSET_DEFS } from '../game/store/useGameStore';
+import { ShoppingCart, Car, Truck, Package, Settings, AlertTriangle, Check, CreditCard, DollarSign } from 'lucide-react';
 
-const SHOP_ITEMS = {
-  fleet: [
-    { id: 'small_tipper', name: 'Small Tipper', price: 35000, leaseDeposit: 5000, leaseWeekly: 350, desc: 'Light duty tipper for small loads' },
-    { id: 'large_tipper', name: 'Large Tipper', price: 65000, leaseDeposit: 8000, leaseWeekly: 500, desc: '8-wheel tipper for heavy loads' },
-    { id: 'skip_truck', name: 'Skip Truck', price: 85000, leaseDeposit: 12000, leaseWeekly: 650, desc: 'Skip loader vehicle' },
-    { id: 'grab_lorry', name: 'Grab Lorry', price: 120000, leaseDeposit: 15000, leaseWeekly: 850, desc: 'Grab arm equipped lorry' },
-    { id: 'artic_unit', name: 'Artic Unit', price: 95000, leaseDeposit: 12000, leaseWeekly: 700, desc: 'Articulated tractor unit' },
-  ],
-  trailers: [
-    { id: 'flatbed_trailer', name: 'Flatbed Trailer', price: 15000, leaseDeposit: 2000, leaseWeekly: 120, desc: 'Standard flatbed trailer' },
-    { id: 'tipper_trailer', name: 'Tipper Trailer', price: 25000, leaseDeposit: 3500, leaseWeekly: 200, desc: 'Tipping trailer for aggregates' },
-    { id: 'walking_floor', name: 'Walking Floor', price: 45000, leaseDeposit: 6000, leaseWeekly: 350, desc: 'Self-unloading trailer' },
-  ],
-  containers: [
-    { id: 'skip_8yd', name: '8 Yard Skip', price: 800, desc: 'Small skip container' },
-    { id: 'skip_12yd', name: '12 Yard Skip', price: 1200, desc: 'Medium skip container' },
-    { id: 'skip_16yd', name: '16 Yard Skip', price: 1600, desc: 'Large skip container' },
-    { id: 'roro_20yd', name: '20 Yard RoRo', price: 3500, desc: 'Roll-on roll-off container' },
-    { id: 'roro_40yd', name: '40 Yard RoRo', price: 5500, desc: 'Large RoRo container' },
-  ],
+const SHOP_CATEGORIES = {
+  fleet: {
+    label: 'Vehicles',
+    icon: Car,
+    items: ['small_tipper', 'large_tipper', 'skip_truck', 'grab_lorry', 'artic_unit'],
+  },
+  trailers: {
+    label: 'Trailers',
+    icon: Truck,
+    items: ['flatbed_trailer', 'tipper_trailer', 'walking_floor'],
+  },
+  containers: {
+    label: 'Containers',
+    icon: Package,
+    items: ['skip_8yd', 'skip_12yd', 'skip_16yd', 'roro_20yd', 'roro_40yd'],
+  },
 };
 
 export const ShopPage = () => {
@@ -36,9 +32,7 @@ export const ShopPage = () => {
         <div className="text-center">
           <AlertTriangle size={48} className="mx-auto mb-4 text-[var(--primary)]" />
           <div className="font-heading text-xl text-[var(--text-main)]">SHOP LOCKED</div>
-          <div className="text-[var(--text-muted)] mt-2">
-            Purchase your first depot to unlock the shop.
-          </div>
+          <div className="text-[var(--text-muted)] mt-2">Purchase your first depot to unlock the shop.</div>
         </div>
       </div>
     );
@@ -53,30 +47,25 @@ export const ShopPage = () => {
   const storageUsed = currentAssets.length;
   const storageMax = selectedDepot?.storageMax || 10;
   
-  const handleBuy = (item) => {
-    if (!selectedDepotId) {
-      setPurchaseError('Please select a depot first');
-      return;
-    }
+  const handleBuy = (defId) => {
+    const def = ASSET_DEFS[defId];
+    const canLease = leaseMode && def.leaseDeposit;
     
-    const result = buyAsset(item.id, selectedDepotId, leaseMode && item.leaseDeposit);
+    setPurchaseError(null);
+    setPurchaseSuccess(null);
+    
+    const result = buyAsset(defId, selectedDepotId, canLease);
     
     if (result.success) {
-      setPurchaseSuccess(`${item.name} purchased successfully!`);
-      setPurchaseError(null);
+      setPurchaseSuccess(`${def.name} ${canLease ? 'leased' : 'purchased'}!`);
       setTimeout(() => setPurchaseSuccess(null), 3000);
     } else {
       setPurchaseError(result.error);
-      setPurchaseSuccess(null);
     }
   };
   
-  const tabs = [
-    { id: 'fleet', label: 'Fleet', icon: Car },
-    { id: 'trailers', label: 'Trailers', icon: Truck },
-    { id: 'containers', label: 'Containers', icon: Package },
-    { id: 'upgrades', label: 'Upgrades', icon: Settings },
-  ];
+  const category = SHOP_CATEGORIES[currentTab];
+  const items = category?.items.map(id => ({ id, ...ASSET_DEFS[id] })) || [];
   
   return (
     <div className="p-6" data-testid="shop-page">
@@ -84,14 +73,14 @@ export const ShopPage = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-heading text-3xl font-black text-[var(--text-main)]">SHOP</h1>
-          <p className="text-[var(--text-muted)] mt-1">Purchase vehicles, trailers, and containers</p>
+          <p className="text-[var(--text-muted)] mt-1">Purchase or lease vehicles, trailers, and containers</p>
         </div>
         
-        {/* Depot Selector */}
+        {/* Depot Selector & Storage */}
         <div className="flex items-center gap-4">
           <div>
             <label className="block text-xs text-[var(--text-muted)] uppercase tracking-widest mb-1">
-              Deliver To
+              Deliver To Depot
             </label>
             <select
               value={selectedDepotId || ''}
@@ -105,11 +94,10 @@ export const ShopPage = () => {
             </select>
           </div>
           
-          {/* Storage Info */}
           <div className="card">
             <div className="p-3">
               <div className="text-xs text-[var(--text-muted)] uppercase">Storage</div>
-              <div className="font-mono text-lg">
+              <div className="font-mono text-xl">
                 <span className={storageUsed >= storageMax ? 'text-[var(--danger)]' : 'text-[var(--text-main)]'}>
                   {storageUsed}
                 </span>
@@ -121,44 +109,62 @@ export const ShopPage = () => {
       </div>
       
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-[var(--surface)] p-1">
-        {tabs.map(({ id, label, icon: Icon }) => (
+      <div className="flex gap-2 mb-6 bg-[var(--surface)] p-1">
+        {Object.entries(SHOP_CATEGORIES).map(([id, { label, icon: Icon }]) => (
           <button
             key={id}
             onClick={() => setShopTab(id)}
-            className={`flex items-center gap-2 px-4 py-2 transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors ${
               currentTab === id
                 ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
                 : 'text-[var(--text-muted)] hover:bg-[var(--surface-highlight)]'
             }`}
             data-testid={`tab-${id}`}
           >
-            <Icon size={16} />
-            <span className="font-bold uppercase text-sm">{label}</span>
+            <Icon size={18} />
+            <span className="font-bold uppercase">{label}</span>
           </button>
         ))}
       </div>
       
       {/* Lease Toggle */}
-      {currentTab !== 'containers' && currentTab !== 'upgrades' && (
-        <div className="flex items-center gap-4 mb-6">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={leaseMode}
-              onChange={(e) => setLeaseMode(e.target.checked)}
-              className="w-4 h-4"
-              data-testid="lease-toggle"
-            />
-            <span className="text-[var(--text-main)]">Lease Mode</span>
-          </label>
-          <span className="text-xs text-[var(--text-muted)]">
-            {leaseMode ? 'Pay deposit + weekly payments' : 'Purchase outright'}
-          </span>
+      {currentTab !== 'containers' && (
+        <div className="flex items-center gap-6 mb-6 p-4 bg-[var(--surface)] border border-[var(--border)]">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setLeaseMode(false)}
+              className={`flex items-center gap-2 px-4 py-2 font-bold text-sm transition-colors ${
+                !leaseMode 
+                  ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' 
+                  : 'text-[var(--text-muted)] hover:bg-[var(--surface-highlight)]'
+              }`}
+              data-testid="buy-mode"
+            >
+              <DollarSign size={16} />
+              BUY OUTRIGHT
+            </button>
+            <button
+              onClick={() => setLeaseMode(true)}
+              className={`flex items-center gap-2 px-4 py-2 font-bold text-sm transition-colors ${
+                leaseMode 
+                  ? 'bg-[var(--secondary)] text-[var(--secondary-foreground)]' 
+                  : 'text-[var(--text-muted)] hover:bg-[var(--surface-highlight)]'
+              }`}
+              data-testid="lease-mode"
+            >
+              <CreditCard size={16} />
+              LEASE
+            </button>
+          </div>
+          <div className="text-xs text-[var(--text-muted)]">
+            {leaseMode 
+              ? 'Pay deposit now + weekly payments. Return anytime.' 
+              : 'Full ownership. Can sell later at 60% value.'}
+          </div>
         </div>
       )}
       
-      {/* Success/Error Messages */}
+      {/* Messages */}
       {purchaseSuccess && (
         <div className="bg-[var(--success)]/10 border border-[var(--success)] p-3 mb-6 flex items-center gap-2">
           <Check size={16} className="text-[var(--success)]" />
@@ -167,65 +173,102 @@ export const ShopPage = () => {
       )}
       
       {purchaseError && (
-        <div className="bg-[var(--danger)]/10 border border-[var(--danger)] p-3 mb-6">
+        <div className="bg-[var(--danger)]/10 border border-[var(--danger)] p-3 mb-6 flex items-center gap-2">
+          <AlertTriangle size={16} className="text-[var(--danger)]" />
           <span className="text-[var(--danger)]">{purchaseError}</span>
         </div>
       )}
       
+      {/* Storage Full Warning */}
+      {storageUsed >= storageMax && (
+        <div className="bg-[var(--danger)]/10 border border-[var(--danger)] p-3 mb-6 flex items-center gap-2">
+          <AlertTriangle size={16} className="text-[var(--danger)]" />
+          <span className="text-[var(--danger)]">Depot storage is full! Buy a larger depot or sell existing assets.</span>
+        </div>
+      )}
+      
       {/* Items Grid */}
-      {currentTab !== 'upgrades' ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {SHOP_ITEMS[currentTab]?.map((item) => (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {items.map((item) => {
+          const canLease = leaseMode && item.leaseDeposit;
+          const displayPrice = canLease ? item.leaseDeposit : item.price;
+          const canAfford = game.company.cash >= displayPrice;
+          const canBuy = canAfford && storageUsed < storageMax;
+          
+          return (
             <div key={item.id} className="card" data-testid={`shop-item-${item.id}`}>
               <div className="card-header">
                 <h3 className="font-heading font-bold text-[var(--text-main)]">{item.name}</h3>
               </div>
               <div className="card-content">
-                <p className="text-sm text-[var(--text-muted)] mb-4">{item.desc}</p>
-                
-                <div className="space-y-2 mb-4">
+                {/* Item Info */}
+                <div className="space-y-2 mb-4 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-xs text-[var(--text-muted)]">
-                      {leaseMode && item.leaseDeposit ? 'Deposit' : 'Price'}
-                    </span>
-                    <span className="font-mono font-bold text-[var(--primary)]">
-                      {formatCurrency(leaseMode && item.leaseDeposit ? item.leaseDeposit : item.price)}
-                    </span>
+                    <span className="text-[var(--text-muted)]">Type</span>
+                    <span className="text-[var(--text-main)] capitalize">{item.kind}</span>
                   </div>
-                  {leaseMode && item.leaseWeekly && (
+                  {item.capacity > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-xs text-[var(--text-muted)]">Weekly</span>
-                      <span className="font-mono text-[var(--text-main)]">
-                        {formatCurrency(item.leaseWeekly)}/wk
+                      <span className="text-[var(--text-muted)]">Capacity</span>
+                      <span className="text-[var(--text-main)]">{item.capacity}t</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Pricing */}
+                <div className="border-t border-[var(--border)] pt-4 mb-4">
+                  {leaseMode && item.leaseDeposit ? (
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-xs text-[var(--text-muted)]">Deposit</span>
+                        <span className="font-mono font-bold text-[var(--secondary)]">
+                          {formatCurrency(item.leaseDeposit)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-[var(--text-muted)]">Weekly</span>
+                        <span className="font-mono text-[var(--text-main)]">
+                          {formatCurrency(item.leaseWeekly)}/wk
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-[var(--text-muted)]">Price</span>
+                      <span className="font-mono text-2xl font-bold text-[var(--primary)]">
+                        {formatCurrency(item.price)}
                       </span>
                     </div>
                   )}
                 </div>
                 
+                {/* Buy Button */}
                 <button
-                  onClick={() => handleBuy(item)}
-                  disabled={storageUsed >= storageMax}
-                  className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => handleBuy(item.id)}
+                  disabled={!canBuy}
+                  className={`w-full py-3 font-bold uppercase transition-colors ${
+                    canBuy 
+                      ? leaseMode && item.leaseDeposit
+                        ? 'btn-secondary'
+                        : 'btn-primary'
+                      : 'bg-[var(--border)] text-[var(--muted)] cursor-not-allowed'
+                  }`}
                   data-testid={`buy-${item.id}`}
                 >
                   <ShoppingCart size={16} className="inline mr-2" />
-                  {leaseMode && item.leaseDeposit ? 'LEASE' : 'BUY'}
+                  {canLease ? 'LEASE' : 'BUY'}
                 </button>
+                
+                {!canAfford && (
+                  <div className="text-xs text-[var(--danger)] text-center mt-2">
+                    Need {formatCurrency(displayPrice - game.company.cash)} more
+                  </div>
+                )}
               </div>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="card">
-          <div className="p-8 text-center">
-            <Settings size={48} className="mx-auto mb-4 text-[var(--muted)]" />
-            <div className="text-[var(--text-muted)]">Upgrades coming soon</div>
-            <div className="text-xs text-[var(--muted)] mt-2">
-              Depot upgrades like fuel savings and reliability improvements will be available here.
-            </div>
-          </div>
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 };
