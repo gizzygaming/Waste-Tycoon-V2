@@ -11,8 +11,11 @@ import {
   HelpCircle,
   Pause,
   Play,
-  FastForward,
-  Save
+  Save,
+  X,
+  CheckCircle,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 import { useGameStore, formatCurrency, getGameDate, formatGameTime } from '../game/store/useGameStore';
 
@@ -27,17 +30,56 @@ const NAV_ITEMS = [
   { path: '/help', label: 'Help', icon: HelpCircle },
 ];
 
+// Notifications component
+const Notifications = () => {
+  const { notifications, clearNotification } = useGameStore();
+  
+  if (notifications.length === 0) return null;
+  
+  const icons = {
+    success: <CheckCircle size={16} className="text-[var(--success)]" />,
+    warning: <AlertTriangle size={16} className="text-[var(--primary)]" />,
+    error: <AlertTriangle size={16} className="text-[var(--danger)]" />,
+    info: <Info size={16} className="text-[var(--secondary)]" />,
+  };
+  
+  return (
+    <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm" data-testid="notifications">
+      {notifications.map((notif) => (
+        <div 
+          key={notif.id}
+          className="bg-[var(--surface)] border border-[var(--border)] p-3 flex items-start gap-3 animate-slide-in shadow-lg"
+        >
+          {icons[notif.type] || icons.info}
+          <span className="text-sm text-[var(--text-main)] flex-1">{notif.message}</span>
+          <button 
+            onClick={() => clearNotification(notif.id)}
+            className="text-[var(--muted)] hover:text-[var(--text-main)]"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export const Layout = () => {
   const navigate = useNavigate();
-  const { game, togglePause, setSpeed, speedMultiplier, saveGame } = useGameStore();
+  const { game, togglePause, setSpeed, speedMultiplier, saveGame, addNotification } = useGameStore();
   
   const hasUnlocked = game?.ui?.hasUnlockedGame || false;
   
   const handleNavClick = (e, path) => {
     if (!hasUnlocked && path !== '/map' && path !== '/help') {
       e.preventDefault();
-      // Could show a toast here
+      addNotification('Buy your first depot to unlock this feature!', 'warning');
     }
+  };
+  
+  const handleSave = () => {
+    saveGame();
+    addNotification('Game saved!', 'success');
   };
   
   const gameDate = game ? getGameDate(game.world) : new Date();
@@ -47,6 +89,10 @@ export const Layout = () => {
     month: 'short', 
     year: 'numeric' 
   });
+  
+  // Calculate total fleet value
+  const fleetCount = game ? Object.values(game.assets.physical).filter(a => a.kind === 'vehicle').length : 0;
+  const staffCount = game ? Object.keys(game.staff.staff).length : 0;
   
   return (
     <div className="flex h-screen bg-[var(--background)] overflow-hidden" data-testid="game-layout">
@@ -101,10 +147,12 @@ export const Layout = () => {
             <div className="text-xs text-[var(--text-muted)] uppercase tracking-widest mb-2">
               Company Stats
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-[var(--text-muted)]">Reputation</span>
-                <span className="font-mono text-[var(--text-main)]">{game.company.reputation}%</span>
+                <span className={`font-mono ${game.company.reputation >= 70 ? 'text-[var(--success)]' : game.company.reputation >= 40 ? 'text-[var(--primary)]' : 'text-[var(--danger)]'}`}>
+                  {game.company.reputation}%
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[var(--text-muted)]">Depots</span>
@@ -114,10 +162,20 @@ export const Layout = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-[var(--text-muted)]">Fleet</span>
-                <span className="font-mono text-[var(--text-main)]">
-                  {Object.values(game.assets.physical).filter(a => a.kind === 'vehicle').length}
-                </span>
+                <span className="font-mono text-[var(--text-main)]">{fleetCount}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--text-muted)]">Staff</span>
+                <span className="font-mono text-[var(--text-main)]">{staffCount}</span>
+              </div>
+              {game.loans.creditLine.enabled && game.loans.creditLine.principalOwed > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-[var(--danger)]">Loan</span>
+                  <span className="font-mono text-[var(--danger)]">
+                    {formatCurrency(game.loans.creditLine.principalOwed)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -131,10 +189,20 @@ export const Layout = () => {
           <div className="flex items-center gap-8">
             <div>
               <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-widest">Cash</div>
-              <div className="font-mono text-2xl font-bold text-[var(--success)]" data-testid="cash-display">
+              <div className={`font-mono text-2xl font-bold ${game && game.company.cash >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`} data-testid="cash-display">
                 {game ? formatCurrency(game.company.cash) : '£0'}
               </div>
             </div>
+            
+            {/* Active Jobs Indicator */}
+            {game && Object.keys(game.dispatch.activeJobs).length > 0 && (
+              <div className="flex items-center gap-2 bg-[var(--secondary)]/20 px-3 py-1">
+                <Truck size={16} className="text-[var(--secondary)] animate-pulse" />
+                <span className="font-mono text-[var(--secondary)]">
+                  {Object.keys(game.dispatch.activeJobs).length} active
+                </span>
+              </div>
+            )}
           </div>
           
           {/* Time Controls */}
@@ -156,7 +224,7 @@ export const Layout = () => {
                 data-testid="pause-button"
                 className={`p-2 transition-colors duration-150 ${
                   game?.world.paused 
-                    ? 'text-[var(--danger)]' 
+                    ? 'text-[var(--danger)] bg-[var(--danger)]/10' 
                     : 'text-[var(--success)]'
                 } hover:bg-[var(--surface-highlight)]`}
                 title={game?.world.paused ? 'Resume' : 'Pause'}
@@ -164,7 +232,7 @@ export const Layout = () => {
                 {game?.world.paused ? <Play size={20} /> : <Pause size={20} />}
               </button>
               
-              {[1, 2, 5].map((speed) => (
+              {[1, 2, 5, 10].map((speed) => (
                 <button
                   key={speed}
                   onClick={() => setSpeed(speed)}
@@ -182,7 +250,7 @@ export const Layout = () => {
             
             {/* Save Button */}
             <button
-              onClick={saveGame}
+              onClick={handleSave}
               data-testid="save-button"
               className="btn-secondary flex items-center gap-2 py-2 px-4"
               title="Save Game"
@@ -198,6 +266,9 @@ export const Layout = () => {
           <Outlet />
         </main>
       </div>
+      
+      {/* Notifications */}
+      <Notifications />
     </div>
   );
 };
