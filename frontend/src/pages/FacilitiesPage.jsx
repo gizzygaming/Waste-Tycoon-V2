@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useGameStore, formatCurrency, STAFF_CONFIG } from '../game/store/useGameStore';
 import { Building, Users, AlertTriangle, Edit2, Check, X, UserPlus, DollarSign, Shield, Warehouse } from 'lucide-react';
 
