@@ -81,44 +81,44 @@ export const DispatchPage = () => {
   };
   
   return (
-    <div className="p-6" data-testid="dispatch-page">
+    <div className="p-3 lg:p-6" data-testid="dispatch-page">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="font-heading text-3xl font-black text-[var(--text-main)]">DISPATCH</h1>
-        <p className="text-[var(--text-muted)] mt-1">Assign drivers and vehicles to contracts</p>
+      <div className="mb-4 lg:mb-6">
+        <h1 className="font-heading text-2xl lg:text-3xl font-black text-[var(--text-main)]">DISPATCH</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-1">Assign drivers and vehicles to contracts</p>
       </div>
       
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4 mb-4 lg:mb-6">
         <div className="card">
-          <div className="p-4">
-            <div className="text-xs text-[var(--text-muted)] uppercase">Contracts Ready</div>
-            <div className="font-mono text-2xl font-bold text-[var(--primary)]">{acceptedContracts.length}</div>
+          <div className="p-3 lg:p-4">
+            <div className="text-[10px] lg:text-xs text-[var(--text-muted)] uppercase">Contracts Ready</div>
+            <div className="font-mono text-xl lg:text-2xl font-bold text-[var(--primary)]">{acceptedContracts.length}</div>
           </div>
         </div>
         <div className="card">
-          <div className="p-4">
-            <div className="text-xs text-[var(--text-muted)] uppercase">Drivers Available</div>
-            <div className="font-mono text-2xl font-bold text-[var(--secondary)]">{availableDrivers.length}/{drivers.length}</div>
+          <div className="p-3 lg:p-4">
+            <div className="text-[10px] lg:text-xs text-[var(--text-muted)] uppercase">Drivers Avail</div>
+            <div className="font-mono text-xl lg:text-2xl font-bold text-[var(--secondary)]">{availableDrivers.length}/{drivers.length}</div>
           </div>
         </div>
         <div className="card">
-          <div className="p-4">
-            <div className="text-xs text-[var(--text-muted)] uppercase">Vehicles Ready</div>
-            <div className="font-mono text-2xl font-bold text-[var(--accent)]">{availableVehicles.length}/{vehicles.length}</div>
+          <div className="p-3 lg:p-4">
+            <div className="text-[10px] lg:text-xs text-[var(--text-muted)] uppercase">Vehicles Ready</div>
+            <div className="font-mono text-xl lg:text-2xl font-bold text-[var(--accent)]">{availableVehicles.length}/{vehicles.length}</div>
           </div>
         </div>
         <div className="card">
-          <div className="p-4">
-            <div className="text-xs text-[var(--text-muted)] uppercase">Jobs Active</div>
-            <div className="font-mono text-2xl font-bold text-[var(--success)]">{activeJobs.length}</div>
+          <div className="p-3 lg:p-4">
+            <div className="text-[10px] lg:text-xs text-[var(--text-muted)] uppercase">Jobs Active</div>
+            <div className="font-mono text-xl lg:text-2xl font-bold text-[var(--success)]">{activeJobs.length}</div>
           </div>
         </div>
       </div>
       
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Left: Create Job */}
-        <div className="col-span-2">
+        <div className="lg:col-span-2">
           <div className="card">
             <div className="card-header flex justify-between items-center">
               <h2 className="font-heading font-bold text-[var(--text-main)]">CREATE DISPATCH JOB</h2>
@@ -171,7 +171,7 @@ export const DispatchPage = () => {
                   2. Select Driver {drivers.length === 0 && <span className="text-[var(--danger)]">(Hire in Facilities)</span>}
                 </label>
                 {availableDrivers.length > 0 ? (
-                  <div className="grid gap-2 md:grid-cols-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
                     {availableDrivers.map((driver) => (
                       <button
                         key={driver.id}
@@ -209,7 +209,7 @@ export const DispatchPage = () => {
                   3. Select Vehicle {vehicles.length === 0 && <span className="text-[var(--danger)]">(Buy in Shop)</span>}
                 </label>
                 {availableVehicles.length > 0 ? (
-                  <div className="grid gap-2 md:grid-cols-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
                     {availableVehicles.map((vehicle) => {
                       const isLowCondition = vehicle.condition < 10;
                       const def = ASSET_DEFS[vehicle.defId];
@@ -265,7 +265,7 @@ export const DispatchPage = () => {
                   <label className="block text-xs text-[var(--text-muted)] uppercase tracking-widest mb-2">
                     4. Select Container (Optional)
                   </label>
-                  <div className="grid gap-2 md:grid-cols-3">
+                  <div className="grid gap-2 sm:grid-cols-3">
                     {availableContainers.filter(c => c.defId.includes('skip')).map((container) => {
                       const def = ASSET_DEFS[container.defId];
                       return (
