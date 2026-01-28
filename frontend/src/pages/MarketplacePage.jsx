@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useGameStore, formatCurrency, MATERIAL_PRICES } from '../game/store/useGameStore';
-import { Store, AlertTriangle, TrendingUp, Package, Truck, DollarSign } from 'lucide-react';
+import { useGameStore, formatCurrency, MATERIAL_PRICES, ASSET_DEFS } from '../game/store/useGameStore';
+import { Store, AlertTriangle, TrendingUp, Package, Truck, DollarSign, User, ChevronDown } from 'lucide-react';
 
 const MATERIAL_NAMES = {
   sandstone: 'Sandstone',
@@ -19,9 +19,12 @@ const MATERIAL_NAMES = {
 };
 
 export const MarketplacePage = () => {
-  const { game, sellMaterial } = useGameStore();
+  const { game, sellMaterial, scheduleMaterialDelivery } = useGameStore();
   const [sellQuantity, setSellQuantity] = useState({});
   const [sellError, setSellError] = useState(null);
+  const [deliveryMode, setDeliveryMode] = useState({}); // Track which items are in delivery mode
+  const [selectedDriver, setSelectedDriver] = useState({});
+  const [selectedVehicle, setSelectedVehicle] = useState({});
   
   if (!game?.ui?.hasUnlockedGame) {
     return (
