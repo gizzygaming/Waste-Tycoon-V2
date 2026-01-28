@@ -215,6 +215,8 @@ export const MarketplacePage = () => {
                   <div className="divide-y divide-[var(--border)]">
                     {inventory.map(({ materialId, tonnes, price, value }) => {
                       const key = `${facilityId}-${materialId}`;
+                      const isDeliveryMode = deliveryMode[key];
+                      
                       return (
                         <div key={materialId} className="p-4" data-testid={`inventory-${facilityId}-${materialId}`}>
                           <div className="flex justify-between items-center mb-2">
@@ -225,31 +227,91 @@ export const MarketplacePage = () => {
                               {formatCurrency(value)}
                             </span>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1">
-                              <div className="text-xs text-[var(--text-muted)] mb-1">
-                                {tonnes.toFixed(1)}t @ {formatCurrency(price)}/t
-                              </div>
-                              <div className="flex gap-2">
-                                <input
-                                  type="number"
-                                  placeholder={`Max ${tonnes.toFixed(0)}t`}
-                                  value={sellQuantity[key] || ''}
-                                  onChange={(e) => setSellQuantity({ ...sellQuantity, [key]: e.target.value })}
-                                  className="flex-1 py-1 px-2 text-sm"
-                                  max={tonnes}
-                                  min={1}
-                                />
-                                <button
-                                  onClick={() => handleSell(facilityId, materialId, tonnes)}
-                                  className="btn-primary py-1 px-4 text-sm"
-                                  data-testid={`sell-${key}`}
-                                >
-                                  SELL
-                                </button>
-                              </div>
-                            </div>
+                          <div className="text-xs text-[var(--text-muted)] mb-2">
+                            {tonnes.toFixed(1)}t @ {formatCurrency(price)}/t
                           </div>
+                          
+                          {/* Quantity Input */}
+                          <input
+                            type="number"
+                            placeholder={`Max ${tonnes.toFixed(0)}t`}
+                            value={sellQuantity[key] || ''}
+                            onChange={(e) => setSellQuantity({ ...sellQuantity, [key]: e.target.value })}
+                            className="w-full py-1 px-2 text-sm mb-2"
+                            max={tonnes}
+                            min={1}
+                          />
+                          
+                          {/* Toggle between instant sell and delivery */}
+                          <div className="flex gap-2 mb-2">
+                            <button
+                              onClick={() => setDeliveryMode({ ...deliveryMode, [key]: false })}
+                              className={`flex-1 py-1 px-2 text-xs font-bold ${
+                                !isDeliveryMode 
+                                  ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' 
+                                  : 'bg-[var(--surface)] text-[var(--text-muted)]'
+                              }`}
+                            >
+                              INSTANT SELL
+                            </button>
+                            <button
+                              onClick={() => setDeliveryMode({ ...deliveryMode, [key]: true })}
+                              className={`flex-1 py-1 px-2 text-xs font-bold ${
+                                isDeliveryMode 
+                                  ? 'bg-[var(--secondary)] text-[var(--secondary-foreground)]' 
+                                  : 'bg-[var(--surface)] text-[var(--text-muted)]'
+                              }`}
+                            >
+                              DELIVERY
+                            </button>
+                          </div>
+                          
+                          {isDeliveryMode ? (
+                            <div className="space-y-2">
+                              {/* Driver Select */}
+                              <select
+                                value={selectedDriver[key] || ''}
+                                onChange={(e) => setSelectedDriver({ ...selectedDriver, [key]: e.target.value })}
+                                className="w-full py-1 px-2 text-sm bg-[var(--background)] border border-[var(--border)]"
+                              >
+                                <option value="">Select Driver</option>
+                                {availableDrivers.map(d => (
+                                  <option key={d.id} value={d.id}>{d.name}</option>
+                                ))}
+                              </select>
+                              
+                              {/* Vehicle Select */}
+                              <select
+                                value={selectedVehicle[key] || ''}
+                                onChange={(e) => setSelectedVehicle({ ...selectedVehicle, [key]: e.target.value })}
+                                className="w-full py-1 px-2 text-sm bg-[var(--background)] border border-[var(--border)]"
+                              >
+                                <option value="">Select Vehicle</option>
+                                {availableVehicles.map(v => (
+                                  <option key={v.id} value={v.id}>
+                                    {ASSET_DEFS[v.defId]?.name} ({v.plate}) - {v.condition}%
+                                  </option>
+                                ))}
+                              </select>
+                              
+                              <button
+                                onClick={() => handleScheduleDelivery(facilityId, materialId, tonnes)}
+                                className="w-full btn-secondary py-1 px-4 text-sm flex items-center justify-center gap-2"
+                                data-testid={`deliver-${key}`}
+                              >
+                                <Truck size={14} />
+                                SCHEDULE DELIVERY
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleSell(facilityId, materialId, tonnes)}
+                              className="w-full btn-primary py-1 px-4 text-sm"
+                              data-testid={`sell-${key}`}
+                            >
+                              SELL NOW
+                            </button>
+                          )}
                         </div>
                       );
                     })}
