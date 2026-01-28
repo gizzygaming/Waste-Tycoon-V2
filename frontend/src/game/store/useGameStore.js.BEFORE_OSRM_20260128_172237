@@ -1660,8 +1660,3 @@ export const useGameStore = create(
 );
 
 export default useGameStore;
-
-// Helper expected by MapPage
-export function getVehiclePosition(job) {
-  return getCurrentVehiclePosition(job);
-}

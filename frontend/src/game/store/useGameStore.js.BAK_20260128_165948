@@ -1,5 +1,3 @@
-import { getOSRMRoute } from "../map/routing/osrm";
-import { pointAlongPolyline } from "../map/routing/polylineMove";
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { v4 as uuidv4 } from 'uuid';
@@ -108,46 +106,6 @@ export const MATERIAL_PRICES = {
   sand: { sell: 22, buy: 18 },
   gravel: { sell: 20, buy: 16 },
 };
-// =========================
-// REAL ROAD ROUTING (OSRM)
-// =========================
-const _routeCache = new Map();
-
-function _routeKey(a, b) {
-  const r = (n) => Number(n).toFixed(5);
-  return `${r(a.lat)},${r(a.lng)}|${r(b.lat)},${r(b.lng)}`;
-}
-
-async function buildOSRMMultiLegRoute(waypoints) {
-  if (!waypoints || waypoints.length < 2) return null;
-
-  let allCoords = [];
-  let totalDistanceM = 0;
-  let totalDurationS = 0;
-
-  for (let i = 0; i < waypoints.length - 1; i++) {
-    const from = waypoints[i];
-    const to = waypoints[i + 1];
-
-    const key = _routeKey(from, to);
-    let leg = _routeCache.get(key);
-
-    if (!leg) {
-      leg = await getOSRMRoute(from, to);
-      if (!leg) return null;
-      _routeCache.set(key, leg);
-    }
-
-    totalDistanceM += leg.distanceM;
-    totalDurationS += leg.durationS;
-
-    // Avoid duplicating the join point
-    const coords = allCoords.length ? leg.coords.slice(1) : leg.coords;
-    allCoords = allCoords.concat(coords);
-  }
-
-  return { coords: allCoords, distanceM: totalDistanceM, durationS: totalDurationS };
-}
 
 // Generate route points with road-like curves (simulates A/B roads)
 const generateRoutePoints = (waypoints, totalDistanceKm) => {
@@ -191,30 +149,17 @@ const generateRoutePoints = (waypoints, totalDistanceKm) => {
 };
 
 // Get current vehicle position based on job progress
-const getCurrentVehiclePosition = (job) => {
-  if (!job) return null;
-
-  const progress = Math.max(0, Math.min(1, job.progress || 0));
-
-  // Prefer real road coords if we have them
-  if (job.routeCoords && job.routeCoords.length > 1 && job.routeDistanceM) {
-    const dist = progress * job.routeDistanceM;
-    const [lat, lng] = pointAlongPolyline(job.routeCoords, dist);
-    return { lat, lng };
-  }
-
-  // Fallback: old routePoints (curved fake roads)
-  if (job.routePoints && job.routePoints.length > 0) {
-    const index = Math.min(
-      Math.floor(progress * (job.routePoints.length - 1)),
-      job.routePoints.length - 1
-    );
-    return job.routePoints[index];
-  }
-
-  return null;
+export const getVehiclePosition = (job) => {
+  if (!job || !job.routePoints || job.routePoints.length === 0) return null;
+  
+  const progress = job.progress || 0;
+  const index = Math.min(
+    Math.floor(progress * (job.routePoints.length - 1)),
+    job.routePoints.length - 1
+  );
+  
+  return job.routePoints[index];
 };
-
 
 // Initial state factory
 const createInitialGameState = (seed) => {
@@ -1209,78 +1154,76 @@ export const useGameStore = create(
     createDispatchJob: (contractId, driverId, vehicleId, trailerId = null, containerId = null) => {
       const { game, addNotification } = get();
       if (!game) return { success: false, error: 'No active game' };
-
+      
       const contract = game.contracts.byId[contractId];
       if (!contract || contract.status !== 'accepted') {
         return { success: false, error: 'Contract not accepted' };
       }
-
+      
       const driver = game.staff.staff[driverId];
       if (!driver || driver.role !== 'driver') {
         return { success: false, error: 'Valid driver required' };
       }
-
+      
       // Check if driver is available
       if (Object.values(game.dispatch.activeJobs).some(j => j.driverId === driverId)) {
         return { success: false, error: 'Driver is already on a job' };
       }
-
+      
       // Check if driver needs rest
       if (driver.restUntilGameSeconds && driver.restUntilGameSeconds > game.world.totalGameSeconds) {
         const restMinutes = Math.ceil((driver.restUntilGameSeconds - game.world.totalGameSeconds) / 60);
         return { success: false, error: `Driver needs rest (${restMinutes} min remaining)` };
       }
-
+      
       // Check driver hours
       if (driver.hoursWorkedToday >= DRIVER_MAX_HOURS) {
         return { success: false, error: `Driver has worked max hours today (${DRIVER_MAX_HOURS}h)` };
       }
-
+      
       const vehicle = game.assets.physical[vehicleId];
       if (!vehicle || vehicle.kind !== 'vehicle') {
         return { success: false, error: 'Valid vehicle required' };
       }
-
+      
       if (vehicle.condition < 10) {
         return { success: false, error: 'Vehicle condition too low (min 10%). Repair first.' };
       }
-
+      
       if (vehicle.inRepair) {
         return { success: false, error: 'Vehicle is in repair' };
       }
-
+      
       // Check if vehicle is available
       if (Object.values(game.dispatch.activeJobs).some(j => j.vehicleAssetId === vehicleId)) {
         return { success: false, error: 'Vehicle is already on a job' };
       }
-
-      const jobId = uuidv4();
-
-      // Fallback (gameplay) estimates – OSRM will overwrite these quickly
-      const fallbackDistanceKm = 20 + Math.floor(Math.random() * 80); // 20-100km
-      const fallbackDurationSeconds = fallbackDistanceKm * 60; // ~1 min per km (game speed)
-
-      // Get pickup and dropoff coordinates
-      const pickupSite = contract.pickupSiteId ? game.map.sites[contract.pickupSiteId] : null;
-      const dropoffSite = contract.dropoffSiteId ? game.map.sites[contract.dropoffSiteId] : null;
-
-      // Get depot location (vehicle start point)
-      const vehicleAsset = game.assets.physical[vehicleId];
-      const depot = vehicleAsset?.depotId ? game.facilities.depots[vehicleAsset.depotId] : null;
-      const depotFacility = depot ? game.facilities.facilities[depot.facilityId] : null;
-      const depotSite = depotFacility?.siteId ? game.map.sites[depotFacility.siteId] : null;
-
-      // Route waypoints (depot -> pickup -> dropoff -> depot)
-      const routeWaypoints = [];
-      if (depotSite) routeWaypoints.push({ lat: depotSite.lat, lng: depotSite.lng, type: 'depot_start' });
-      if (pickupSite) routeWaypoints.push({ lat: pickupSite.lat, lng: pickupSite.lng, type: 'pickup' });
-      if (dropoffSite) routeWaypoints.push({ lat: dropoffSite.lat, lng: dropoffSite.lng, type: 'dropoff' });
-      if (depotSite) routeWaypoints.push({ lat: depotSite.lat, lng: depotSite.lng, type: 'depot_return' });
-
-      // Fallback routePoints immediately (so UI can animate even before OSRM responds)
-      const routePoints = generateRoutePoints(routeWaypoints, fallbackDistanceKm);
-
+      
       set((state) => {
+        const jobId = uuidv4();
+        const distanceKm = 20 + Math.floor(Math.random() * 80); // 20-100km
+        const durationSeconds = distanceKm * 60; // ~1 min per km at game speed (faster for better gameplay)
+        
+        // Get pickup and dropoff coordinates
+        const pickupSite = contract.pickupSiteId ? state.game.map.sites[contract.pickupSiteId] : null;
+        const dropoffSite = contract.dropoffSiteId ? state.game.map.sites[contract.dropoffSiteId] : null;
+        
+        // Get depot location (vehicle start point)
+        const vehicleAsset = state.game.assets.physical[vehicleId];
+        const depot = vehicleAsset?.depotId ? state.game.facilities.depots[vehicleAsset.depotId] : null;
+        const depotFacility = depot ? state.game.facilities.facilities[depot.facilityId] : null;
+        const depotSite = depotFacility?.siteId ? state.game.map.sites[depotFacility.siteId] : null;
+        
+        // Generate route waypoints (depot -> pickup -> dropoff -> depot)
+        const routeWaypoints = [];
+        if (depotSite) routeWaypoints.push({ lat: depotSite.lat, lng: depotSite.lng, type: 'depot_start' });
+        if (pickupSite) routeWaypoints.push({ lat: pickupSite.lat, lng: pickupSite.lng, type: 'pickup' });
+        if (dropoffSite) routeWaypoints.push({ lat: dropoffSite.lat, lng: dropoffSite.lng, type: 'dropoff' });
+        if (depotSite) routeWaypoints.push({ lat: depotSite.lat, lng: depotSite.lng, type: 'depot_return' });
+        
+        // Generate interpolated route points for smooth animation (simulating road following)
+        const routePoints = generateRoutePoints(routeWaypoints, distanceKm);
+        
         state.game.dispatch.activeJobs[jobId] = {
           id: jobId,
           contractId,
@@ -1290,67 +1233,24 @@ export const useGameStore = create(
           trailerAssetId: trailerId || undefined,
           containerAssetId: containerId || undefined,
           startedAtGameSeconds: state.game.world.totalGameSeconds,
-          completesAtGameSeconds: state.game.world.totalGameSeconds + fallbackDurationSeconds,
-          distanceKm: fallbackDistanceKm,
-          durationSeconds: fallbackDurationSeconds,
-          conditionWear: Math.ceil(fallbackDistanceKm * 0.15), // 0.15% per km
+          completesAtGameSeconds: state.game.world.totalGameSeconds + durationSeconds,
+          distanceKm,
+          conditionWear: Math.ceil(distanceKm * 0.15), // 0.15% per km
           routeWaypoints,
           routePoints,
           currentRouteIndex: 0,
           progress: 0, // 0 to 1
         };
-
+        
         state.game.contracts.byId[contractId].status = 'in_progress';
       });
-
-      // Fire-and-forget: swap the fake route for a real road route
-      get().ensureJobRoadRoute(jobId);
-
+      
       addNotification(`Job dispatched: ${contract.title}`, 'success');
       get().saveGame();
       return { success: true };
     },
-
+    
     // Process dispatch jobs (called by SimRunner)
-
-// Ensure a job has a real OSRM road route (async; safe to call multiple times)
-    ensureJobRoadRoute: async (jobId) => {
-      const { game } = get();
-      if (!game) return;
-
-      // Jobs live in game.dispatch.activeJobs (and then move to completedJobs)
-      const job = game.dispatch.activeJobs?.[jobId] || game.dispatch.completedJobs?.[jobId];
-      if (!job || !job.routeWaypoints || job.routeWaypoints.length < 2) return;
-
-      // If already has OSRM route, skip
-      if (job.routeCoords && job.routeCoords.length > 1 && job.routeDistanceM) return;
-
-      const route = await buildOSRMMultiLegRoute(job.routeWaypoints);
-      if (!route || !route.coords || route.coords.length < 2) return;
-
-      set((state) => {
-        const j = state.game.dispatch.activeJobs?.[jobId] || state.game.dispatch.completedJobs?.[jobId];
-        if (!j) return;
-
-        j.routeCoords = route.coords; // [[lat,lng], ...]
-        j.routeDistanceM = route.distanceM;
-
-        // UI expects {lat,lng}
-        j.routePoints = route.coords.map(([lat, lng]) => ({ lat, lng }));
-
-        // Update distance & duration using game speed (1 min per km)
-        const km = Math.max(1, Math.round(route.distanceM / 1000));
-        j.distanceKm = km;
-
-        const durationSeconds = km * 60;
-        j.durationSeconds = durationSeconds;
-        j.completesAtGameSeconds = j.startedAtGameSeconds + durationSeconds;
-
-        // Keep condition wear consistent with new km
-        j.conditionWear = Math.ceil(km * 0.15);
-      });
-    },
-
     processDispatchJobs: () => {
       const { game, addNotification } = get();
       if (!game) return;
@@ -1561,71 +1461,70 @@ export const useGameStore = create(
     scheduleMaterialDelivery: (facilityId, materialId, tonnes, driverId, vehicleId) => {
       const { game, addNotification } = get();
       if (!game) return { success: false, error: 'No active game' };
-
+      
       const inventory = game.marketplace.inventoryTonnesByFacility[facilityId];
       if (!inventory || !inventory[materialId] || inventory[materialId] < tonnes) {
         return { success: false, error: 'Insufficient material in inventory' };
       }
-
+      
       const driver = game.staff.staff[driverId];
       if (!driver || driver.role !== 'driver') {
         return { success: false, error: 'Valid driver required' };
       }
-
+      
       // Check if driver is available
       if (Object.values(game.dispatch.activeJobs).some(j => j.driverId === driverId)) {
         return { success: false, error: 'Driver is already on a job' };
       }
-
+      
       // Check driver rest
       if (driver.restUntilGameSeconds && driver.restUntilGameSeconds > game.world.totalGameSeconds) {
         return { success: false, error: 'Driver needs rest' };
       }
-
+      
       const vehicle = game.assets.physical[vehicleId];
       if (!vehicle || vehicle.kind !== 'vehicle') {
         return { success: false, error: 'Valid vehicle required' };
       }
-
+      
       if (vehicle.condition < 10) {
         return { success: false, error: 'Vehicle condition too low' };
       }
-
+      
       if (Object.values(game.dispatch.activeJobs).some(j => j.vehicleAssetId === vehicleId)) {
         return { success: false, error: 'Vehicle is already on a job' };
       }
-
+      
       const price = game.marketplace.prices[materialId]?.sell || 0;
       const totalValue = tonnes * price;
-
-      const jobId = uuidv4();
-
-      const fallbackDistanceKm = 30 + Math.floor(Math.random() * 50);
-      const fallbackDurationSeconds = fallbackDistanceKm * 60;
-
-      // Get facility location
-      const facility = game.facilities.facilities[facilityId];
-      const facilitySite = facility?.siteId ? game.map.sites[facility.siteId] : null;
-
-      // Create delivery route (facility -> buyer -> facility)
-      const routeWaypoints = [];
-      if (facilitySite) {
-        routeWaypoints.push({ lat: facilitySite.lat, lng: facilitySite.lng, type: 'depot_start' });
-        // Buyer location (random nearby)
-        routeWaypoints.push({
-          lat: facilitySite.lat + (Math.random() - 0.5) * 0.5,
-          lng: facilitySite.lng + (Math.random() - 0.5) * 0.5,
-          type: 'dropoff'
-        });
-        routeWaypoints.push({ lat: facilitySite.lat, lng: facilitySite.lng, type: 'depot_return' });
-      }
-
-      const routePoints = generateRoutePoints(routeWaypoints, fallbackDistanceKm);
-
+      
       set((state) => {
+        const jobId = uuidv4();
+        const distanceKm = 30 + Math.floor(Math.random() * 50);
+        const durationSeconds = distanceKm * 60;
+        
         // Reserve the material (deduct from inventory)
         state.game.marketplace.inventoryTonnesByFacility[facilityId][materialId] -= tonnes;
-
+        
+        // Get facility location
+        const facility = state.game.facilities.facilities[facilityId];
+        const facilitySite = facility?.siteId ? state.game.map.sites[facility.siteId] : null;
+        
+        // Create delivery route (facility -> buyer -> facility)
+        const routeWaypoints = [];
+        if (facilitySite) {
+          routeWaypoints.push({ lat: facilitySite.lat, lng: facilitySite.lng, type: 'depot_start' });
+          // Buyer location (random nearby)
+          routeWaypoints.push({ 
+            lat: facilitySite.lat + (Math.random() - 0.5) * 0.5, 
+            lng: facilitySite.lng + (Math.random() - 0.5) * 0.5, 
+            type: 'dropoff' 
+          });
+          routeWaypoints.push({ lat: facilitySite.lat, lng: facilitySite.lng, type: 'depot_return' });
+        }
+        
+        const routePoints = generateRoutePoints(routeWaypoints, distanceKm);
+        
         state.game.dispatch.activeJobs[jobId] = {
           id: jobId,
           type: 'material_delivery',
@@ -1637,31 +1536,21 @@ export const useGameStore = create(
           driverId,
           vehicleAssetId: vehicleId,
           startedAtGameSeconds: state.game.world.totalGameSeconds,
-          completesAtGameSeconds: state.game.world.totalGameSeconds + fallbackDurationSeconds,
-          distanceKm: fallbackDistanceKm,
-          durationSeconds: fallbackDurationSeconds,
-          conditionWear: Math.ceil(fallbackDistanceKm * 0.15),
+          completesAtGameSeconds: state.game.world.totalGameSeconds + durationSeconds,
+          distanceKm,
+          conditionWear: Math.ceil(distanceKm * 0.15),
           routeWaypoints,
           routePoints,
           currentRouteIndex: 0,
           progress: 0,
         };
       });
-
-      // Fire-and-forget: swap the fake route for a real road route
-      get().ensureJobRoadRoute(jobId);
-
+      
       addNotification(`Material delivery scheduled: ${tonnes}t of ${materialId}`, 'info');
       get().saveGame();
       return { success: true };
     },
-
   }))
 );
 
 export default useGameStore;
-
-// Helper expected by MapPage
-export function getVehiclePosition(job) {
-  return getCurrentVehiclePosition(job);
-}
