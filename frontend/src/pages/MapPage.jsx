@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import React, { useEffect, useState, useMemo } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useGameStore, formatCurrency } from '../game/store/useGameStore';
+import { useGameStore, formatCurrency, getVehiclePosition, ASSET_DEFS } from '../game/store/useGameStore';
 import { getBuyableFacilities } from '../game/data/siteGenerator';
+import { VEHICLE_ICONS, FACILITY_ICONS, getSiteIcon } from '../game/data/mapIcons';
 import { MapPin, Building, Truck, Pickaxe, Store, AlertTriangle, X, ChevronRight, Target, CheckCircle } from 'lucide-react';
 
 // Fix for default marker icons
@@ -15,7 +16,80 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-// Custom marker icons
+// Create custom icon from PNG image
+const createPngIcon = (imageUrl, size = 40, isOwned = false) => {
+  return L.divIcon({
+    className: 'custom-png-marker',
+    html: `
+      <div style="
+        width: ${size}px;
+        height: ${size}px;
+        position: relative;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+      ">
+        <img src="${imageUrl}" style="
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          ${isOwned ? 'filter: drop-shadow(0 0 3px #22C55E);' : ''}
+        " />
+        ${isOwned ? `<div style="
+          position: absolute;
+          top: -5px;
+          right: -5px;
+          width: 14px;
+          height: 14px;
+          background: #22C55E;
+          border-radius: 50%;
+          border: 2px solid #fff;
+        "></div>` : ''}
+      </div>
+    `,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2],
+  });
+};
+
+// Create vehicle marker icon
+const createVehicleIcon = (defId, size = 36) => {
+  const imageUrl = VEHICLE_ICONS[defId] || VEHICLE_ICONS.small_tipper;
+  return L.divIcon({
+    className: 'vehicle-marker',
+    html: `
+      <div style="
+        width: ${size}px;
+        height: ${size}px;
+        position: relative;
+        animation: vehiclePulse 2s ease-in-out infinite;
+      ">
+        <img src="${imageUrl}" style="
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+        " />
+        <div style="
+          position: absolute;
+          bottom: -8px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 8px;
+          height: 8px;
+          background: #EF4444;
+          border-radius: 50%;
+          border: 2px solid #fff;
+          animation: pulse 1s ease-in-out infinite;
+        "></div>
+      </div>
+    `,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2],
+  });
+};
+
+// Custom marker icons (fallback)
 const createIcon = (color, isOwned = false) => {
   return L.divIcon({
     className: 'custom-marker',
