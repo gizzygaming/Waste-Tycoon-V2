@@ -121,7 +121,6 @@ export const FacilitiesPage = () => {
           <div className="space-y-2 max-h-[250px] lg:max-h-[calc(100vh-280px)] overflow-auto">
             {facilities.map((facility) => {
               const staffCount = Object.values(game.staff.staff).filter(s => s.facilityId === facility.id).length;
-              const isSelected = selectedFacility?.id === facility.id;
               
               return (
                 <button
