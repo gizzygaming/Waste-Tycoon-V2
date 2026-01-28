@@ -1137,7 +1137,27 @@ export const useGameStore = create(
       set((state) => {
         const jobId = uuidv4();
         const distanceKm = 20 + Math.floor(Math.random() * 80); // 20-100km
-        const durationSeconds = distanceKm * 90; // ~1.5 min per km at game speed
+        const durationSeconds = distanceKm * 60; // ~1 min per km at game speed (faster for better gameplay)
+        
+        // Get pickup and dropoff coordinates
+        const pickupSite = contract.pickupSiteId ? state.game.map.sites[contract.pickupSiteId] : null;
+        const dropoffSite = contract.dropoffSiteId ? state.game.map.sites[contract.dropoffSiteId] : null;
+        
+        // Get depot location (vehicle start point)
+        const vehicleAsset = state.game.assets.physical[vehicleId];
+        const depot = vehicleAsset?.depotId ? state.game.facilities.depots[vehicleAsset.depotId] : null;
+        const depotFacility = depot ? state.game.facilities.facilities[depot.facilityId] : null;
+        const depotSite = depotFacility?.siteId ? state.game.map.sites[depotFacility.siteId] : null;
+        
+        // Generate route waypoints (depot -> pickup -> dropoff -> depot)
+        const routeWaypoints = [];
+        if (depotSite) routeWaypoints.push({ lat: depotSite.lat, lng: depotSite.lng, type: 'depot_start' });
+        if (pickupSite) routeWaypoints.push({ lat: pickupSite.lat, lng: pickupSite.lng, type: 'pickup' });
+        if (dropoffSite) routeWaypoints.push({ lat: dropoffSite.lat, lng: dropoffSite.lng, type: 'dropoff' });
+        if (depotSite) routeWaypoints.push({ lat: depotSite.lat, lng: depotSite.lng, type: 'depot_return' });
+        
+        // Generate interpolated route points for smooth animation (simulating road following)
+        const routePoints = generateRoutePoints(routeWaypoints, distanceKm);
         
         state.game.dispatch.activeJobs[jobId] = {
           id: jobId,
@@ -1151,6 +1171,10 @@ export const useGameStore = create(
           completesAtGameSeconds: state.game.world.totalGameSeconds + durationSeconds,
           distanceKm,
           conditionWear: Math.ceil(distanceKm * 0.15), // 0.15% per km
+          routeWaypoints,
+          routePoints,
+          currentRouteIndex: 0,
+          progress: 0, // 0 to 1
         };
         
         state.game.contracts.byId[contractId].status = 'in_progress';
