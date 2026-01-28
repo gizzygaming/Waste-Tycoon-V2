@@ -96,13 +96,26 @@ const StartScreen = () => {
 // Game Wrapper - shows start screen or game
 const GameWrapper = () => {
   const { game, activeSlotId, loadGame, saveSlots } = useGameStore();
+  const [isLoading, setIsLoading] = useState(true);
   
   // Auto-load game from localStorage on mount
   useEffect(() => {
-    if (!game && activeSlotId && saveSlots[activeSlotId]) {
+    if (activeSlotId && saveSlots[activeSlotId] && !game) {
       loadGame(activeSlotId);
     }
+    // Give it a moment then stop loading
+    const timer = setTimeout(() => setIsLoading(false), 100);
+    return () => clearTimeout(timer);
   }, [game, activeSlotId, loadGame, saveSlots]);
+  
+  // Show loading briefly while we check localStorage
+  if (isLoading && !game && activeSlotId) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="text-[var(--primary)] font-heading text-xl">Loading game...</div>
+      </div>
+    );
+  }
   
   if (!game || !activeSlotId) {
     return <StartScreen />;
