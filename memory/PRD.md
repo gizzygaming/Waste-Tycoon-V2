@@ -23,7 +23,7 @@ Build Waste Tycoon - complete UK waste & logistics tycoon game based on detailed
 - **Backend**: FastAPI (minimal - game state is client-side in localStorage)
 - **Storage**: localStorage for save slots
 
-## What's Been Implemented (Jan 28, 2026)
+## What's Been Implemented
 
 ### COMPLETE GAME - ALL FEATURES ✅
 
@@ -39,6 +39,7 @@ Build Waste Tycoon - complete UK waste & logistics tycoon game based on detailed
 - Top bar: Cash display, Date/Time, Speed controls (1x/2x/5x/10x), Save button
 - Page locking until first depot purchased
 - Real-time notifications system
+- **MOBILE RESPONSIVE**: Hamburger menu, collapsible sidebar, responsive layouts
 
 #### 3. Map Page (Full Implementation)
 - UK Leaflet map with OSM tiles
@@ -47,6 +48,11 @@ Build Waste Tycoon - complete UK waste & logistics tycoon game based on detailed
 - Quick site selector dropdown (fallback for marker clicks)
 - Site filters (All/Depots/Industrial/Quarries/Owned)
 - Facility purchase flow with size selection (Small/Medium/Large)
+- **PNG ICONS for facilities** (transport depot, quarry, office, etc.)
+- **PNG ICONS for vehicles** (small tipper, large tipper, skip truck, grab lorry, artic unit)
+- **VEHICLE TRACKING**: Owned vehicles shown on map during active jobs
+- **ROUTE POLYLINES**: Blue dashed lines showing vehicle routes
+- **VEHICLE ANIMATION**: Vehicles move along routes as jobs progress
 
 #### 4. Shop Page
 - Buy outright or Lease toggle
@@ -55,6 +61,7 @@ Build Waste Tycoon - complete UK waste & logistics tycoon game based on detailed
 - Containers: Skips (8/12/16 yd), RoRo (20/40 yd)
 - Depot storage capacity tracking
 - Price display with "Need £X more" warning
+- Mobile responsive grid layout
 
 #### 5. Contracts Page
 - Contract generation (Skip Hire, Grab Collection, Work Haulage)
@@ -62,6 +69,7 @@ Build Waste Tycoon - complete UK waste & logistics tycoon game based on detailed
 - Filter tabs (Available/Active/Completed)
 - Stats: Available count, Active count, Pending Payment, Total Earned
 - Requirements display (Driver, Vehicle type, Tonnes)
+- Mobile responsive with 2-column stats grid
 
 #### 6. Dispatch Page
 - 3-step job creation: Contract → Driver → Vehicle
@@ -69,6 +77,9 @@ Build Waste Tycoon - complete UK waste & logistics tycoon game based on detailed
 - Active Jobs panel with live updates
 - Recent Completed panel
 - Status indicators: "All drivers on jobs", "Vehicle in repair"
+- **JOB PROGRESS SYSTEM**: Jobs progress through statuses:
+  - en_route_pickup → loading → en_route_delivery → unloading → returning → completed
+- **AUTOMATIC COMPLETION**: Jobs complete and pay out automatically
 
 #### 7. Fleet Page
 - Tabs: Vehicles / Trailers / Containers
@@ -76,6 +87,7 @@ Build Waste Tycoon - complete UK waste & logistics tycoon game based on detailed
 - Repair button (requires mechanic garage, £50/point)
 - Sell button with confirmation (60% value × condition)
 - Leased badge and On Job indicators
+- Mobile responsive grid
 
 #### 8. Facilities Page
 - Facility list with selection
@@ -84,6 +96,7 @@ Build Waste Tycoon - complete UK waste & logistics tycoon game based on detailed
 - 11 staff roles with different hire costs and wages
 - Compliance and Capacity bars
 - Monthly costs calculation (overhead + wages)
+- Mobile responsive layout
 
 #### 9. Marketplace Page
 - Material prices table (Buy/Sell per tonne)
@@ -123,18 +136,22 @@ Build Waste Tycoon - complete UK waste & logistics tycoon game based on detailed
 4. Hire Driver (£2,000 hire cost)
 5. Accept Contract (e.g., Work Haulage £850)
 6. Dispatch Job (assign driver + vehicle)
-7. Job completes automatically → Get paid!
-8. Vehicle condition degrades → Repair if needed
-9. Monthly bills deducted → Manage cash flow
-10. Expand empire: more depots, vehicles, staff, contracts!
+7. **Vehicle appears on map** with route polyline
+8. **Job progresses through statuses** automatically
+9. Job completes automatically → Get paid!
+10. Vehicle condition degrades → Repair if needed
+11. Monthly bills deducted → Manage cash flow
+12. Expand empire: more depots, vehicles, staff, contracts!
 
-## Test Results
+## Test Results (iteration_3.json)
+- **100% pass rate** (24/24 tests passed)
 - Full end-to-end flow verified
+- Mobile responsiveness verified at 375px
+- PNG icons for vehicles and facilities working
+- Vehicle markers on map during active jobs
+- Route polylines visible
+- Dispatch job completion working
 - Cash properly deducted/added at each step
-- Notifications appear for all actions
-- Vehicle condition wears and can be repaired
-- Job progress tracking works
-- Time controls function correctly
 
 ## Remaining P2 Features (Nice to Have)
 - [ ] Driver fatigue system (15h max, 10h rest)
@@ -142,5 +159,13 @@ Build Waste Tycoon - complete UK waste & logistics tycoon game based on detailed
 - [ ] Weather effects
 - [ ] Fuel costs
 - [ ] Multiple regions unlock
+- [ ] Real routing API integration (currently simulated)
 
-## Date: January 28, 2026
+## Latest Update: January 28, 2026
+- Added mobile responsive design with hamburger menu
+- Added PNG icons for all vehicle types
+- Added PNG icons for all facility types  
+- Fixed dispatch system - jobs now complete properly
+- Added vehicle tracking on map during active jobs
+- Added route visualization with polylines
+- Added vehicle position animation along routes
