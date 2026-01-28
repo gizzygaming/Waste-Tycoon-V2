@@ -1436,6 +1436,100 @@ export const useGameStore = create(
       get().saveGame();
       return { success: true };
     },
+    
+    // Schedule material delivery (creates a delivery job)
+    scheduleMaterialDelivery: (facilityId, materialId, tonnes, driverId, vehicleId) => {
+      const { game, addNotification } = get();
+      if (!game) return { success: false, error: 'No active game' };
+      
+      const inventory = game.marketplace.inventoryTonnesByFacility[facilityId];
+      if (!inventory || !inventory[materialId] || inventory[materialId] < tonnes) {
+        return { success: false, error: 'Insufficient material in inventory' };
+      }
+      
+      const driver = game.staff.staff[driverId];
+      if (!driver || driver.role !== 'driver') {
+        return { success: false, error: 'Valid driver required' };
+      }
+      
+      // Check if driver is available
+      if (Object.values(game.dispatch.activeJobs).some(j => j.driverId === driverId)) {
+        return { success: false, error: 'Driver is already on a job' };
+      }
+      
+      // Check driver rest
+      if (driver.restUntilGameSeconds && driver.restUntilGameSeconds > game.world.totalGameSeconds) {
+        return { success: false, error: 'Driver needs rest' };
+      }
+      
+      const vehicle = game.assets.physical[vehicleId];
+      if (!vehicle || vehicle.kind !== 'vehicle') {
+        return { success: false, error: 'Valid vehicle required' };
+      }
+      
+      if (vehicle.condition < 10) {
+        return { success: false, error: 'Vehicle condition too low' };
+      }
+      
+      if (Object.values(game.dispatch.activeJobs).some(j => j.vehicleAssetId === vehicleId)) {
+        return { success: false, error: 'Vehicle is already on a job' };
+      }
+      
+      const price = game.marketplace.prices[materialId]?.sell || 0;
+      const totalValue = tonnes * price;
+      
+      set((state) => {
+        const jobId = uuidv4();
+        const distanceKm = 30 + Math.floor(Math.random() * 50);
+        const durationSeconds = distanceKm * 60;
+        
+        // Reserve the material (deduct from inventory)
+        state.game.marketplace.inventoryTonnesByFacility[facilityId][materialId] -= tonnes;
+        
+        // Get facility location
+        const facility = state.game.facilities.facilities[facilityId];
+        const facilitySite = facility?.siteId ? state.game.map.sites[facility.siteId] : null;
+        
+        // Create delivery route (facility -> buyer -> facility)
+        const routeWaypoints = [];
+        if (facilitySite) {
+          routeWaypoints.push({ lat: facilitySite.lat, lng: facilitySite.lng, type: 'depot_start' });
+          // Buyer location (random nearby)
+          routeWaypoints.push({ 
+            lat: facilitySite.lat + (Math.random() - 0.5) * 0.5, 
+            lng: facilitySite.lng + (Math.random() - 0.5) * 0.5, 
+            type: 'dropoff' 
+          });
+          routeWaypoints.push({ lat: facilitySite.lat, lng: facilitySite.lng, type: 'depot_return' });
+        }
+        
+        const routePoints = generateRoutePoints(routeWaypoints, distanceKm);
+        
+        state.game.dispatch.activeJobs[jobId] = {
+          id: jobId,
+          type: 'material_delivery',
+          materialId,
+          tonnes,
+          expectedPayout: totalValue,
+          facilityId,
+          status: 'en_route_delivery',
+          driverId,
+          vehicleAssetId: vehicleId,
+          startedAtGameSeconds: state.game.world.totalGameSeconds,
+          completesAtGameSeconds: state.game.world.totalGameSeconds + durationSeconds,
+          distanceKm,
+          conditionWear: Math.ceil(distanceKm * 0.15),
+          routeWaypoints,
+          routePoints,
+          currentRouteIndex: 0,
+          progress: 0,
+        };
+      });
+      
+      addNotification(`Material delivery scheduled: ${tonnes}t of ${materialId}`, 'info');
+      get().saveGame();
+      return { success: true };
+    },
   }))
 );
 
