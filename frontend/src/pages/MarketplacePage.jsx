@@ -151,7 +151,7 @@ export const MarketplacePage = () => {
           <div>
             <div className="text-[var(--text-main)] font-bold text-sm lg:text-base">Material Trading</div>
             <div className="text-[10px] lg:text-xs text-[var(--text-muted)]">
-              Materials are produced by quarries (500t/day) and stored at your facilities. Sell directly from here.
+              Instant sell for quick cash, or schedule delivery for full price (requires driver & vehicle).
             </div>
           </div>
         </div>
