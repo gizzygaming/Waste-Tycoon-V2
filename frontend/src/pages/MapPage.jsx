@@ -179,10 +179,14 @@ export const MapPage = () => {
           
           <MapFocuser center={focusCenter} zoom={12} />
           
-          <MarkerClusterGroup chunkedLoading maxClusterRadius={60}>
+          <MarkerClusterGroup 
+            chunkedLoading 
+            maxClusterRadius={60}
+            spiderfyOnMaxZoom={true}
+            showCoverageOnHover={false}
+          >
             {filteredSites.map((site) => {
               const isOwnedSite = game.map.ownedSiteIds[site.id];
-              const isSelected = game.map.selectedSiteId === site.id;
               
               return (
                 <Marker
@@ -190,7 +194,8 @@ export const MapPage = () => {
                   position={[site.lat, site.lng]}
                   icon={createIcon(SITE_COLORS[site.kind] || '#737373', isOwnedSite)}
                   eventHandlers={{
-                    click: () => {
+                    click: (e) => {
+                      e.originalEvent?.stopPropagation?.();
                       selectSite(site.id);
                       setSelectedFacility(null);
                       setPurchaseError(null);
@@ -199,19 +204,45 @@ export const MapPage = () => {
                 >
                   <Popup>
                     <div className="text-sm min-w-[150px]">
-                      <strong className="text-[var(--text-main)]">{site.name}</strong>
-                      <div className="text-xs text-[var(--text-muted)] mt-1">
+                      <strong>{site.name}</strong>
+                      <div className="text-xs mt-1" style={{color: '#666'}}>
                         {site.kind.replace(/_/g, ' ')}
                       </div>
                       {site.tags && (
-                        <div className="flex flex-wrap gap-1 mt-2">
+                        <div style={{marginTop: '8px'}}>
                           {site.tags.map(tag => (
-                            <span key={tag} className="text-[10px] bg-[var(--primary)]/20 text-[var(--primary)] px-1">
+                            <span key={tag} style={{
+                              fontSize: '10px',
+                              background: '#EAB30833',
+                              color: '#EAB308',
+                              padding: '2px 4px',
+                              marginRight: '4px'
+                            }}>
                               {tag.replace(/_/g, ' ')}
                             </span>
                           ))}
                         </div>
                       )}
+                      <button
+                        onClick={() => {
+                          selectSite(site.id);
+                          setSelectedFacility(null);
+                          setPurchaseError(null);
+                        }}
+                        style={{
+                          marginTop: '8px',
+                          width: '100%',
+                          padding: '6px',
+                          background: '#EAB308',
+                          color: '#000',
+                          border: 'none',
+                          fontWeight: 'bold',
+                          fontSize: '11px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        SELECT SITE
+                      </button>
                     </div>
                   </Popup>
                 </Marker>
