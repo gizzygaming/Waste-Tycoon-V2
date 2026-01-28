@@ -367,3 +367,47 @@ input:focus, select:focus, textarea:focus {
 .progress-bar-fill.high {
   background: var(--success);
 }
+
+/* Vehicle marker animations */
+@keyframes vehiclePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
+  50% { opacity: 0.7; transform: translateX(-50%) scale(1.3); }
+}
+
+.vehicle-marker {
+  z-index: 1000 !important;
+}
+
+.custom-png-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Map Leaflet overrides for mobile */
+.leaflet-container {
+  font-family: inherit;
+}
+
+.leaflet-popup-content {
+  margin: 8px 12px;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 4px;
+}
+
+@media (max-width: 640px) {
+  .leaflet-control-zoom {
+    margin-top: 60px !important;
+  }
+  
+  .leaflet-popup-content {
+    margin: 6px 10px;
+    font-size: 12px;
+  }
+}
