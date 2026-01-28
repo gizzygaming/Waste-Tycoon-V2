@@ -95,7 +95,14 @@ const StartScreen = () => {
 
 // Game Wrapper - shows start screen or game
 const GameWrapper = () => {
-  const { game, activeSlotId } = useGameStore();
+  const { game, activeSlotId, loadGame, saveSlots } = useGameStore();
+  
+  // Auto-load game from localStorage on mount
+  useEffect(() => {
+    if (!game && activeSlotId && saveSlots[activeSlotId]) {
+      loadGame(activeSlotId);
+    }
+  }, [game, activeSlotId, loadGame, saveSlots]);
   
   if (!game || !activeSlotId) {
     return <StartScreen />;
