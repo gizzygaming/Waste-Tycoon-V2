@@ -261,12 +261,19 @@ export const MapPage = () => {
           >
             {filteredSites.map((site) => {
               const isOwnedSite = game.map.ownedSiteIds[site.id];
+              const ownedFacility = isOwnedSite ? 
+                Object.values(game.facilities.facilities).find(f => f.siteId === site.id) : null;
+              
+              // Use PNG icon for owned facilities
+              const siteIcon = isOwnedSite && ownedFacility ? 
+                createPngIcon(FACILITY_ICONS[ownedFacility.type] || getSiteIcon(site.kind), 44, true) :
+                createPngIcon(getSiteIcon(site.kind), 36, false);
               
               return (
                 <Marker
                   key={site.id}
                   position={[site.lat, site.lng]}
-                  icon={createIcon(SITE_COLORS[site.kind] || '#737373', isOwnedSite)}
+                  icon={siteIcon}
                   eventHandlers={{
                     click: (e) => {
                       e.originalEvent?.stopPropagation?.();
@@ -323,6 +330,74 @@ export const MapPage = () => {
               );
             })}
           </MarkerClusterGroup>
+          
+          {/* Active Vehicle Routes and Markers */}
+          {Object.values(game.dispatch.activeJobs).map((job) => {
+            const vehicle = game.assets.physical[job.vehicleAssetId];
+            if (!vehicle) return null;
+            
+            const vehiclePos = getVehiclePosition(job);
+            if (!vehiclePos) return null;
+            
+            const vehicleDef = ASSET_DEFS[vehicle.defId];
+            const driver = game.staff.staff[job.driverId];
+            
+            return (
+              <React.Fragment key={job.id}>
+                {/* Route Line */}
+                {job.routePoints && job.routePoints.length > 1 && (
+                  <Polyline
+                    positions={job.routePoints.map(p => [p.lat, p.lng])}
+                    color="#3B82F6"
+                    weight={3}
+                    opacity={0.6}
+                    dashArray="10, 10"
+                  />
+                )}
+                
+                {/* Vehicle Marker */}
+                <Marker
+                  position={[vehiclePos.lat, vehiclePos.lng]}
+                  icon={createVehicleIcon(vehicle.defId, 40)}
+                  zIndexOffset={1000}
+                >
+                  <Popup>
+                    <div className="text-sm min-w-[180px]">
+                      <strong>{vehicleDef?.name || 'Vehicle'}</strong>
+                      <div className="text-xs mt-1" style={{color: '#666'}}>
+                        Plate: {vehicle.plate}
+                      </div>
+                      <div className="text-xs mt-1" style={{color: '#3B82F6', fontWeight: 'bold'}}>
+                        {job.status.replace(/_/g, ' ').toUpperCase()}
+                      </div>
+                      {driver && (
+                        <div className="text-xs mt-1" style={{color: '#666'}}>
+                          Driver: {driver.name}
+                        </div>
+                      )}
+                      <div style={{
+                        marginTop: '8px',
+                        background: '#E5E7EB',
+                        height: '6px',
+                        borderRadius: '3px',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          width: `${(job.progress || 0) * 100}%`,
+                          height: '100%',
+                          background: '#3B82F6',
+                          transition: 'width 0.3s ease'
+                        }}></div>
+                      </div>
+                      <div className="text-xs mt-1" style={{color: '#666'}}>
+                        Progress: {Math.round((job.progress || 0) * 100)}%
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              </React.Fragment>
+            );
+          })}
         </MapContainer>
       </div>
       
