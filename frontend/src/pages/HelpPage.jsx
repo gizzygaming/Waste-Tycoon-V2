@@ -58,41 +58,41 @@ export const HelpPage = () => {
   const hasLoan = game?.loans.creditLine.enabled && game?.loans.creditLine.principalOwed > 0;
   
   return (
-    <div className="p-6" data-testid="help-page">
+    <div className="p-3 lg:p-6" data-testid="help-page">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="font-heading text-3xl font-black text-[var(--text-main)]">HELP & MANAGEMENT</h1>
-        <p className="text-[var(--text-muted)] mt-1">Game rules, saves, and loans</p>
+      <div className="mb-4 lg:mb-6">
+        <h1 className="font-heading text-2xl lg:text-3xl font-black text-[var(--text-main)]">HELP & MANAGEMENT</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-1">Game rules, saves, and loans</p>
       </div>
       
       {/* Section Tabs */}
-      <div className="flex gap-2 mb-6 bg-[var(--surface)] p-1">
+      <div className="flex gap-1 lg:gap-2 mb-4 lg:mb-6 bg-[var(--surface)] p-1">
         {[
-          { id: 'saves', label: 'Save Manager', icon: Save },
+          { id: 'saves', label: 'Saves', icon: Save },
           { id: 'loans', label: 'Loans', icon: CreditCard },
-          { id: 'rules', label: 'Game Rules', icon: BookOpen },
+          { id: 'rules', label: 'Rules', icon: BookOpen },
         ].map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setActiveSection(id)}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1 lg:gap-2 py-2 lg:py-3 transition-colors ${
               activeSection === id 
                 ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
                 : 'text-[var(--text-muted)] hover:bg-[var(--surface-highlight)]'
             }`}
           >
-            <Icon size={18} />
-            <span className="font-bold uppercase">{label}</span>
+            <Icon size={16} />
+            <span className="font-bold uppercase text-xs lg:text-base">{label}</span>
           </button>
         ))}
       </div>
       
       {/* Save Manager */}
       {activeSection === 'saves' && (
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           <div>
-            <h2 className="font-heading text-xl font-bold text-[var(--text-main)] mb-4">SAVE SLOTS</h2>
-            <div className="space-y-3">
+            <h2 className="font-heading text-lg lg:text-xl font-bold text-[var(--text-main)] mb-3 lg:mb-4">SAVE SLOTS</h2>
+            <div className="space-y-2 lg:space-y-3">
               {slots.map((slotId) => {
                 const slot = saveSlots[slotId];
                 const isActive = activeSlotId === slotId;
@@ -217,7 +217,7 @@ export const HelpPage = () => {
             </div>
           </div>
           
-          <div>
+          <div className="hidden lg:block">
             <h2 className="font-heading text-xl font-bold text-[var(--text-main)] mb-4">SAVE INFO</h2>
             <div className="card">
               <div className="card-content space-y-4">
@@ -250,9 +250,9 @@ export const HelpPage = () => {
       
       {/* Loans Section */}
       {activeSection === 'loans' && game && (
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           <div>
-            <h2 className="font-heading text-xl font-bold text-[var(--text-main)] mb-4">CREDIT LINE</h2>
+            <h2 className="font-heading text-lg lg:text-xl font-bold text-[var(--text-main)] mb-3 lg:mb-4">CREDIT LINE</h2>
             
             {loanError && (
               <div className="bg-[var(--danger)]/10 border border-[var(--danger)] p-3 mb-4 text-[var(--danger)] text-sm">
@@ -345,7 +345,7 @@ export const HelpPage = () => {
             )}
           </div>
           
-          <div>
+          <div className="hidden lg:block">
             <h2 className="font-heading text-xl font-bold text-[var(--text-main)] mb-4">LOAN TERMS</h2>
             <div className="card">
               <div className="card-content space-y-4">
@@ -378,14 +378,14 @@ export const HelpPage = () => {
       
       {/* Rules Section */}
       {activeSection === 'rules' && (
-        <div className="grid grid-cols-2 gap-6">
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-6">
+          <div className="space-y-3 lg:space-y-4">
             <div className="card">
               <div className="card-header flex items-center gap-2">
-                <AlertTriangle size={16} className="text-[var(--primary)]" />
-                <span className="font-heading font-bold">GETTING STARTED</span>
+                <AlertTriangle size={14} className="text-[var(--primary)]" />
+                <span className="font-heading font-bold text-sm lg:text-base">GETTING STARTED</span>
               </div>
-              <div className="card-content text-sm text-[var(--text-muted)] space-y-2">
+              <div className="card-content text-xs lg:text-sm text-[var(--text-muted)] space-y-1 lg:space-y-2">
                 <p>1. Start a new game from Save Manager</p>
                 <p>2. Buy your first <strong className="text-[var(--text-main)]">Small Transport Depot</strong> (£50,000) from an industrial estate</p>
                 <p>3. This unlocks all game features</p>
