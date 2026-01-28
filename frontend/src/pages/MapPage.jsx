@@ -121,22 +121,22 @@ export const MapPage = () => {
   };
   
   return (
-    <div className="flex h-full" data-testid="map-page">
+    <div className="flex flex-col lg:flex-row h-full" data-testid="map-page">
       {/* Map Container */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative min-h-[300px] lg:min-h-0">
         {/* Setup Instruction Banner */}
         {!hasFirstDepot && (
-          <div className="absolute top-4 left-4 right-4 z-[1000] bg-[var(--primary)] text-[var(--primary-foreground)] p-4 flex items-center gap-3" data-testid="setup-banner">
-            <AlertTriangle size={24} />
-            <div className="flex-1">
-              <div className="font-heading text-lg font-bold">SETUP REQUIRED</div>
-              <div className="text-sm opacity-90">
+          <div className="absolute top-2 left-2 right-2 lg:top-4 lg:left-4 lg:right-4 z-[1000] bg-[var(--primary)] text-[var(--primary-foreground)] p-2 lg:p-4 flex items-center gap-2 lg:gap-3" data-testid="setup-banner">
+            <AlertTriangle size={20} className="flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="font-heading text-sm lg:text-lg font-bold">SETUP REQUIRED</div>
+              <div className="text-xs lg:text-sm opacity-90 truncate lg:whitespace-normal">
                 Buy your first Transport Depot (£50,000) from an Industrial Estate to unlock the game.
               </div>
             </div>
             <button 
               onClick={() => setFilterType('depot')}
-              className="bg-black/20 hover:bg-black/30 px-4 py-2 font-bold text-sm transition-colors"
+              className="bg-black/20 hover:bg-black/30 px-2 lg:px-4 py-1 lg:py-2 font-bold text-xs lg:text-sm transition-colors flex-shrink-0"
             >
               SHOW DEPOTS
             </button>
@@ -144,7 +144,7 @@ export const MapPage = () => {
         )}
         
         {/* Filter Controls */}
-        <div className="absolute bottom-4 left-4 z-[1000] bg-[var(--surface)] border border-[var(--border)] p-2 flex gap-2">
+        <div className="absolute bottom-2 left-2 lg:bottom-4 lg:left-4 z-[1000] bg-[var(--surface)] border border-[var(--border)] p-1 lg:p-2 flex gap-1 lg:gap-2 overflow-x-auto max-w-[calc(100%-1rem)]">
           {[
             { id: 'all', label: 'All' },
             { id: 'depot', label: 'Depots' },
@@ -155,7 +155,7 @@ export const MapPage = () => {
             <button
               key={f.id}
               onClick={() => setFilterType(f.id)}
-              className={`px-3 py-1 text-xs font-bold uppercase transition-colors ${
+              className={`px-2 lg:px-3 py-1 text-[10px] lg:text-xs font-bold uppercase transition-colors whitespace-nowrap ${
                 filterType === f.id 
                   ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' 
                   : 'text-[var(--text-muted)] hover:bg-[var(--surface-highlight)]'
@@ -253,7 +253,7 @@ export const MapPage = () => {
       </div>
       
       {/* Site Details Panel */}
-      <div className="w-96 bg-[var(--surface)] border-l border-[var(--border)] flex flex-col" data-testid="site-panel">
+      <div className="w-full lg:w-80 xl:w-96 bg-[var(--surface)] border-t lg:border-t-0 lg:border-l border-[var(--border)] flex flex-col max-h-[50vh] lg:max-h-none overflow-auto" data-testid="site-panel">
         {selectedSite ? (
           <>
             {/* Site Header */}
