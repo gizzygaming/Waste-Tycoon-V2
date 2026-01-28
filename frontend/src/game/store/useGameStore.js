@@ -107,6 +107,60 @@ export const MATERIAL_PRICES = {
   gravel: { sell: 20, buy: 16 },
 };
 
+// Generate route points with road-like curves (simulates A/B roads)
+const generateRoutePoints = (waypoints, totalDistanceKm) => {
+  if (!waypoints || waypoints.length < 2) return [];
+  
+  const points = [];
+  const pointsPerSegment = Math.max(20, Math.floor(totalDistanceKm / 2)); // More points for longer routes
+  
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    const start = waypoints[i];
+    const end = waypoints[i + 1];
+    
+    // Generate curved path between waypoints (simulating road curves)
+    for (let j = 0; j <= pointsPerSegment; j++) {
+      const t = j / pointsPerSegment;
+      
+      // Add some randomness to simulate road curves (A/B road style)
+      const curveFactor = Math.sin(t * Math.PI) * 0.002; // Small curve
+      const roadWiggle = Math.sin(t * Math.PI * 4) * 0.0005; // Road wiggle
+      
+      // Calculate midpoint offset for road-like curves
+      const midLat = start.lat + (end.lat - start.lat) * t;
+      const midLng = start.lng + (end.lng - start.lng) * t;
+      
+      // Apply curve offset perpendicular to route direction
+      const dx = end.lng - start.lng;
+      const dy = end.lat - start.lat;
+      const perpX = -dy;
+      const perpY = dx;
+      
+      points.push({
+        lat: midLat + perpX * (curveFactor + roadWiggle),
+        lng: midLng + perpY * (curveFactor + roadWiggle),
+        segmentIndex: i,
+        waypointType: j === 0 ? start.type : (j === pointsPerSegment ? end.type : null),
+      });
+    }
+  }
+  
+  return points;
+};
+
+// Get current vehicle position based on job progress
+export const getVehiclePosition = (job) => {
+  if (!job || !job.routePoints || job.routePoints.length === 0) return null;
+  
+  const progress = job.progress || 0;
+  const index = Math.min(
+    Math.floor(progress * (job.routePoints.length - 1)),
+    job.routePoints.length - 1
+  );
+  
+  return job.routePoints[index];
+};
+
 // Initial state factory
 const createInitialGameState = (seed) => {
   const sites = generateUKSites(seed);
