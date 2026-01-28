@@ -459,15 +459,71 @@ export const MapPage = () => {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center p-8">
-            <div className="text-center">
+          <div className="flex-1 flex flex-col p-4">
+            <div className="text-center mb-6">
               <MapPin size={48} className="mx-auto mb-4 text-[var(--muted)]" />
               <div className="text-[var(--text-muted)]">
                 Select a site on the map
               </div>
               <div className="text-xs text-[var(--muted)] mt-2">
-                Click any marker to view details and purchase
+                Click any marker, or use the dropdown below
               </div>
+            </div>
+            
+            {/* Quick Site Selector */}
+            <div className="border-t border-[var(--border)] pt-4">
+              <label className="block text-xs text-[var(--text-muted)] uppercase tracking-widest mb-2">
+                Quick Select Site
+              </label>
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) {
+                    selectSite(e.target.value);
+                    setSelectedFacility(null);
+                    setPurchaseError(null);
+                  }
+                }}
+                className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--text-main)] p-3"
+                data-testid="quick-site-selector"
+              >
+                <option value="">-- Select a site --</option>
+                {!hasFirstDepot && (
+                  <optgroup label="🎯 Depot Sites (Buy First!)">
+                    {Object.values(game.map.sites)
+                      .filter(s => s.kind === 'industrial_estate' && s.tags?.includes('depot_available'))
+                      .slice(0, 20)
+                      .map(site => (
+                        <option key={site.id} value={site.id}>
+                          {site.name} - {site.region}
+                        </option>
+                      ))
+                    }
+                  </optgroup>
+                )}
+                <optgroup label="Industrial Estates">
+                  {Object.values(game.map.sites)
+                    .filter(s => s.kind === 'industrial_estate')
+                    .slice(0, 15)
+                    .map(site => (
+                      <option key={site.id} value={site.id}>
+                        {site.name} ({site.region})
+                      </option>
+                    ))
+                  }
+                </optgroup>
+                <optgroup label="Quarries">
+                  {Object.values(game.map.sites)
+                    .filter(s => s.kind === 'quarry')
+                    .slice(0, 10)
+                    .map(site => (
+                      <option key={site.id} value={site.id}>
+                        {site.name} ({site.region})
+                      </option>
+                    ))
+                  }
+                </optgroup>
+              </select>
             </div>
           </div>
         )}
