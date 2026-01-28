@@ -437,6 +437,9 @@ export const useGameStore = create(
         
         // === DAILY PROCESSES ===
         if (world.dayOfYear !== prevDay) {
+          // Get office points bonus for cost reduction
+          const officeBonus = getOfficePointsBonus(state.game.facilities.facilities);
+          
           // Quarry production (500 t/day split 4 ways = 125t each)
           Object.values(state.game.facilities.facilities).forEach((facility) => {
             if (facility.type === 'quarry' && !facility.closedAtGameSeconds) {
@@ -459,8 +462,35 @@ export const useGameStore = create(
             }
           });
           
-          // Staff rest reset
+          // Compliance decay for all facilities (1-3 points per day)
+          Object.values(state.game.facilities.facilities).forEach((facility) => {
+            if (facility.closedAtGameSeconds) return;
+            
+            // Check if facility has compliance manager
+            const hasComplianceManager = Object.values(state.game.staff.staff).some(
+              s => s.facilityId === facility.id && s.role === 'compliance_manager'
+            );
+            
+            // Base decay: 2 points/day, reduced by compliance manager and office bonus
+            let decay = 2;
+            if (hasComplianceManager) decay -= 1.5; // Manager almost stops decay
+            decay *= (1 - officeBonus.complianceBoost); // Office points reduce decay
+            
+            facility.compliance = Math.max(0, facility.compliance - Math.max(0, decay));
+            
+            // Close facility if compliance hits 0
+            if (facility.compliance <= 0 && !facility.closedAtGameSeconds) {
+              facility.closedAtGameSeconds = world.totalGameSeconds;
+              // Notification will be handled separately
+            }
+          });
+          
+          // Staff rest reset and driver hours calculation
           Object.values(state.game.staff.staff).forEach((staff) => {
+            // If driver worked yesterday and needs rest
+            if (staff.role === 'driver' && staff.hoursWorkedToday >= DRIVER_MAX_HOURS) {
+              staff.restUntilGameSeconds = world.totalGameSeconds + (DRIVER_REST_HOURS * 3600);
+            }
             staff.hoursWorkedToday = 0;
           });
         }
