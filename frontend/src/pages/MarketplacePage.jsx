@@ -82,46 +82,46 @@ export const MarketplacePage = () => {
   };
   
   return (
-    <div className="p-6" data-testid="marketplace-page">
+    <div className="p-3 lg:p-6" data-testid="marketplace-page">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 lg:mb-6">
         <div>
-          <h1 className="font-heading text-3xl font-black text-[var(--text-main)]">MARKETPLACE</h1>
-          <p className="text-[var(--text-muted)] mt-1">View prices and sell your materials</p>
+          <h1 className="font-heading text-2xl lg:text-3xl font-black text-[var(--text-main)]">MARKETPLACE</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">View prices and sell your materials</p>
         </div>
         <div className="card bg-[var(--success)]/10 border-[var(--success)]">
-          <div className="p-4">
-            <div className="text-xs text-[var(--text-muted)] uppercase">Total Inventory Value</div>
-            <div className="font-mono text-2xl font-bold text-[var(--success)]">{formatCurrency(totalValue)}</div>
+          <div className="p-3 lg:p-4">
+            <div className="text-[10px] lg:text-xs text-[var(--text-muted)] uppercase">Inventory Value</div>
+            <div className="font-mono text-xl lg:text-2xl font-bold text-[var(--success)]">{formatCurrency(totalValue)}</div>
           </div>
         </div>
       </div>
       
       {/* Info Banner */}
-      <div className="card bg-[var(--secondary)]/10 border-[var(--secondary)] mb-6">
-        <div className="p-4 flex items-center gap-4">
-          <TrendingUp size={24} className="text-[var(--secondary)]" />
+      <div className="card bg-[var(--secondary)]/10 border-[var(--secondary)] mb-4 lg:mb-6">
+        <div className="p-3 lg:p-4 flex items-center gap-3 lg:gap-4">
+          <TrendingUp size={20} className="text-[var(--secondary)] flex-shrink-0" />
           <div>
-            <div className="text-[var(--text-main)] font-bold">Material Trading</div>
-            <div className="text-xs text-[var(--text-muted)]">
-              Materials are produced by quarries (500t/day) and stored at your facilities. Sell directly from here or dispatch deliveries for larger orders.
+            <div className="text-[var(--text-main)] font-bold text-sm lg:text-base">Material Trading</div>
+            <div className="text-[10px] lg:text-xs text-[var(--text-muted)]">
+              Materials are produced by quarries (500t/day) and stored at your facilities. Sell directly from here.
             </div>
           </div>
         </div>
       </div>
       
       {sellError && (
-        <div className="bg-[var(--danger)]/10 border border-[var(--danger)] p-3 mb-6 text-[var(--danger)] text-sm">
+        <div className="bg-[var(--danger)]/10 border border-[var(--danger)] p-3 mb-4 lg:mb-6 text-[var(--danger)] text-sm">
           {sellError}
         </div>
       )}
       
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         {/* Prices */}
         <div>
-          <h2 className="font-heading text-xl font-bold text-[var(--text-main)] mb-4 flex items-center gap-2">
-            <DollarSign size={20} />
-            MATERIAL PRICES
+          <h2 className="font-heading text-lg lg:text-xl font-bold text-[var(--text-main)] mb-3 lg:mb-4 flex items-center gap-2">
+            <DollarSign size={18} />
+            PRICES
           </h2>
           <div className="card">
             <div className="card-header grid grid-cols-3 text-xs text-[var(--text-muted)] uppercase tracking-widest">
@@ -153,8 +153,8 @@ export const MarketplacePage = () => {
         
         {/* Inventory */}
         <div>
-          <h2 className="font-heading text-xl font-bold text-[var(--text-main)] mb-4 flex items-center gap-2">
-            <Package size={20} />
+          <h2 className="font-heading text-lg lg:text-xl font-bold text-[var(--text-main)] mb-3 lg:mb-4 flex items-center gap-2">
+            <Package size={18} />
             YOUR INVENTORY
           </h2>
           
