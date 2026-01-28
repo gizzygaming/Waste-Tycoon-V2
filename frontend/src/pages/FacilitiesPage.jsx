@@ -25,7 +25,7 @@ export const FacilitiesPage = () => {
     if (hasUnlocked && !selectedFacilityId && facilities.length > 0) {
       setSelectedFacilityId(facilities[0].id);
     }
-  }, [hasUnlocked, facilities, selectedFacilityId]);
+  }, [hasUnlocked, selectedFacilityId, facilities.length, facilities]);
   
   if (!hasUnlocked) {
     return (
