@@ -29,6 +29,63 @@ export const formatGameTime = (world) => {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 };
 
+// Get week index from game seconds
+export const getWeekIndex = (totalGameSeconds) => {
+  return Math.floor(totalGameSeconds / (86400 * 7));
+};
+
+// Asset definitions
+export const ASSET_DEFS = {
+  // Vehicles
+  small_tipper: { kind: 'vehicle', name: 'Small Tipper', price: 35000, leaseDeposit: 5000, leaseWeekly: 350, capacity: 8 },
+  large_tipper: { kind: 'vehicle', name: 'Large Tipper', price: 65000, leaseDeposit: 8000, leaseWeekly: 500, capacity: 16 },
+  skip_truck: { kind: 'vehicle', name: 'Skip Truck', price: 85000, leaseDeposit: 12000, leaseWeekly: 650, capacity: 2 },
+  grab_lorry: { kind: 'vehicle', name: 'Grab Lorry', price: 120000, leaseDeposit: 15000, leaseWeekly: 850, capacity: 12 },
+  artic_unit: { kind: 'vehicle', name: 'Artic Unit', price: 95000, leaseDeposit: 12000, leaseWeekly: 700, capacity: 0 },
+  // Trailers
+  flatbed_trailer: { kind: 'trailer', name: 'Flatbed Trailer', price: 15000, leaseDeposit: 2000, leaseWeekly: 120, capacity: 20 },
+  tipper_trailer: { kind: 'trailer', name: 'Tipper Trailer', price: 25000, leaseDeposit: 3500, leaseWeekly: 200, capacity: 25 },
+  walking_floor: { kind: 'trailer', name: 'Walking Floor', price: 45000, leaseDeposit: 6000, leaseWeekly: 350, capacity: 30 },
+  // Containers
+  skip_8yd: { kind: 'container', name: '8 Yard Skip', price: 800, capacity: 4 },
+  skip_12yd: { kind: 'container', name: '12 Yard Skip', price: 1200, capacity: 6 },
+  skip_16yd: { kind: 'container', name: '16 Yard Skip', price: 1600, capacity: 8 },
+  roro_20yd: { kind: 'container', name: '20 Yard RoRo', price: 3500, capacity: 10 },
+  roro_40yd: { kind: 'container', name: '40 Yard RoRo', price: 5500, capacity: 20 },
+};
+
+// Staff hire costs and wages
+export const STAFF_CONFIG = {
+  driver: { hireCost: 2000, monthlyWage: 2800 },
+  site_manager: { hireCost: 3500, monthlyWage: 3500 },
+  transport_manager: { hireCost: 4000, monthlyWage: 4200 },
+  compliance_manager: { hireCost: 3000, monthlyWage: 3200 },
+  yard_operative: { hireCost: 1800, monthlyWage: 2200 },
+  machine_operator: { hireCost: 2200, monthlyWage: 2600 },
+  weighbridge_clerk: { hireCost: 1500, monthlyWage: 2000 },
+  mechanic: { hireCost: 2500, monthlyWage: 3000 },
+  admin: { hireCost: 1600, monthlyWage: 2100 },
+  regional_manager: { hireCost: 5000, monthlyWage: 5500 },
+  loader_driver: { hireCost: 2100, monthlyWage: 2500 },
+};
+
+// Material prices
+export const MATERIAL_PRICES = {
+  sandstone: { sell: 25, buy: 20 },
+  '6f2': { sell: 18, buy: 14 },
+  type1: { sell: 22, buy: 18 },
+  type2: { sell: 20, buy: 16 },
+  general_waste: { sell: 15 },
+  metal: { sell: 120, buy: 80 },
+  plastic: { sell: 45, buy: 30 },
+  paper: { sell: 30, buy: 20 },
+  cardboard: { sell: 35, buy: 25 },
+  rubble: { sell: 8 },
+  topsoil: { sell: 28, buy: 22 },
+  sand: { sell: 22, buy: 18 },
+  gravel: { sell: 20, buy: 16 },
+};
+
 // Initial state factory
 const createInitialGameState = (seed) => {
   const sites = generateUKSites(seed);
@@ -43,6 +100,7 @@ const createInitialGameState = (seed) => {
       totalGameSeconds: 28800,
       lastAutosaveGameSeconds: 0,
       lastMonthlyBill: null,
+      lastWeeklyProcess: 0,
     },
     company: {
       cash: 100000, // £100,000 starting cash
@@ -81,27 +139,16 @@ const createInitialGameState = (seed) => {
     },
     contracts: {
       byId: {},
+      lastGeneratedGameSeconds: 0,
     },
     dispatch: {
       activeJobs: {},
       completedJobs: {},
     },
     marketplace: {
-      prices: {
-        sandstone: { materialId: 'sandstone', sell: 25 },
-        '6f2': { materialId: '6f2', sell: 18 },
-        type1: { materialId: 'type1', sell: 22 },
-        type2: { materialId: 'type2', sell: 20 },
-        general_waste: { materialId: 'general_waste', sell: 15 },
-        metal: { materialId: 'metal', sell: 120 },
-        plastic: { materialId: 'plastic', sell: 45 },
-        paper: { materialId: 'paper', sell: 30 },
-        cardboard: { materialId: 'cardboard', sell: 35 },
-        rubble: { materialId: 'rubble', sell: 8 },
-        topsoil: { materialId: 'topsoil', sell: 28 },
-        sand: { materialId: 'sand', sell: 22 },
-        gravel: { materialId: 'gravel', sell: 20 },
-      },
+      prices: Object.fromEntries(
+        Object.entries(MATERIAL_PRICES).map(([id, p]) => [id, { materialId: id, ...p }])
+      ),
       inventoryTonnesByFacility: {},
       lastWeeklyPassiveIncomeWeekIndex: 0,
     },
@@ -120,6 +167,7 @@ const createInitialGameState = (seed) => {
       activeSaveSlotId: null,
       hasUnlockedGame: false,
       lastRoute: '/map',
+      notifications: [],
     },
   };
 };
@@ -158,6 +206,29 @@ const saveActiveSlot = (slotId) => {
   localStorage.setItem(ACTIVE_SLOT_KEY, JSON.stringify(slotId));
 };
 
+// Generate staff name
+const generateStaffName = () => {
+  const firstNames = ['James', 'John', 'David', 'Michael', 'Chris', 'Sarah', 'Emma', 'Lisa', 'Karen', 'Michelle', 'Daniel', 'Mark', 'Paul', 'Andrew', 'Steven', 'Tom', 'Richard', 'Peter', 'Alan', 'Gary', 'Kevin', 'Brian', 'Colin', 'Derek', 'Ian'];
+  const lastNames = ['Smith', 'Jones', 'Williams', 'Brown', 'Taylor', 'Davies', 'Wilson', 'Evans', 'Thomas', 'Roberts', 'Johnson', 'Walker', 'Wright', 'Robinson', 'Hall', 'Clarke', 'Green', 'Lewis', 'Harris', 'Martin', 'Jackson', 'Wood', 'Turner', 'Hill', 'Moore'];
+  return `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
+};
+
+// Generate vehicle plate
+const generatePlate = () => {
+  const letters = 'ABCDEFGHJKLMNPRSTUVWXYZ';
+  const nums = '0123456789';
+  let plate = '';
+  plate += letters[Math.floor(Math.random() * letters.length)];
+  plate += letters[Math.floor(Math.random() * letters.length)];
+  plate += nums[Math.floor(Math.random() * nums.length)];
+  plate += nums[Math.floor(Math.random() * nums.length)];
+  plate += ' ';
+  plate += letters[Math.floor(Math.random() * letters.length)];
+  plate += letters[Math.floor(Math.random() * letters.length)];
+  plate += letters[Math.floor(Math.random() * letters.length)];
+  return plate;
+};
+
 export const useGameStore = create(
   immer((set, get) => ({
     // Current game state
@@ -171,6 +242,33 @@ export const useGameStore = create(
     
     // Game speed multiplier
     speedMultiplier: 1,
+    
+    // Notifications queue
+    notifications: [],
+    
+    // Add notification
+    addNotification: (message, type = 'info') => {
+      const id = uuidv4();
+      set((state) => {
+        state.notifications.push({ id, message, type, timestamp: Date.now() });
+        // Keep only last 5
+        if (state.notifications.length > 5) {
+          state.notifications = state.notifications.slice(-5);
+        }
+      });
+      // Auto-remove after 5 seconds
+      setTimeout(() => {
+        set((state) => {
+          state.notifications = state.notifications.filter(n => n.id !== id);
+        });
+      }, 5000);
+    },
+    
+    clearNotification: (id) => {
+      set((state) => {
+        state.notifications = state.notifications.filter(n => n.id !== id);
+      });
+    },
     
     // ========== SAVE SYSTEM ==========
     
@@ -206,7 +304,7 @@ export const useGameStore = create(
       const slots = get().saveSlots;
       if (slots[slotId]) {
         set((state) => {
-          state.game = slots[slotId].game;
+          state.game = JSON.parse(JSON.stringify(slots[slotId].game)); // Deep clone
           state.activeSlotId = slotId;
         });
         saveActiveSlot(slotId);
@@ -234,7 +332,7 @@ export const useGameStore = create(
       };
       
       set((state) => {
-        state.saveSlots[activeSlotId] = { meta, game: state.game };
+        state.saveSlots[activeSlotId] = { meta, game: JSON.parse(JSON.stringify(state.game)) };
       });
       
       saveSlotsToStorage(get().saveSlots);
@@ -273,6 +371,14 @@ export const useGameStore = create(
       });
     },
     
+    setPaused: (paused) => {
+      set((state) => {
+        if (state.game) {
+          state.game.world.paused = paused;
+        }
+      });
+    },
+    
     setSpeed: (multiplier) => {
       set((state) => {
         state.speedMultiplier = multiplier;
@@ -281,13 +387,14 @@ export const useGameStore = create(
     
     // Tick function called by SimRunner
     tick: (deltaMs) => {
-      const { game, speedMultiplier } = get();
+      const { game, speedMultiplier, addNotification } = get();
       if (!game || game.world.paused) return;
       
       const deltaSeconds = (deltaMs / 1000) * speedMultiplier * 60; // 1 real second = 1 game minute at 1x
       
       set((state) => {
         const world = state.game.world;
+        const prevDay = world.dayOfYear;
         
         world.totalGameSeconds += deltaSeconds;
         world.secondsToday += deltaSeconds;
@@ -307,7 +414,87 @@ export const useGameStore = create(
           }
         }
         
-        // Check for monthly billing
+        // === DAILY PROCESSES ===
+        if (world.dayOfYear !== prevDay) {
+          // Quarry production (500 t/day split 4 ways = 125t each)
+          Object.values(state.game.facilities.facilities).forEach((facility) => {
+            if (facility.type === 'quarry' && !facility.closedAtGameSeconds) {
+              const production = 125; // 125t per material type per day
+              const materials = ['sandstone', '6f2', 'type1', 'type2'];
+              
+              if (!state.game.marketplace.inventoryTonnesByFacility[facility.id]) {
+                state.game.marketplace.inventoryTonnesByFacility[facility.id] = {};
+              }
+              
+              materials.forEach((mat) => {
+                const current = state.game.marketplace.inventoryTonnesByFacility[facility.id][mat] || 0;
+                const maxCapacity = facility.capacityMax;
+                const totalStored = Object.values(state.game.marketplace.inventoryTonnesByFacility[facility.id]).reduce((a, b) => a + b, 0);
+                const canAdd = Math.min(production, maxCapacity - totalStored);
+                if (canAdd > 0) {
+                  state.game.marketplace.inventoryTonnesByFacility[facility.id][mat] = current + canAdd;
+                }
+              });
+            }
+          });
+          
+          // Staff rest reset
+          Object.values(state.game.staff.staff).forEach((staff) => {
+            staff.hoursWorkedToday = 0;
+          });
+        }
+        
+        // === WEEKLY PROCESSES ===
+        const currentWeek = getWeekIndex(world.totalGameSeconds);
+        if (currentWeek > world.lastWeeklyProcess) {
+          world.lastWeeklyProcess = currentWeek;
+          
+          // Building supply passive income (£90k/week)
+          Object.values(state.game.facilities.facilities).forEach((facility) => {
+            if (facility.type === 'building_supply_store' && !facility.closedAtGameSeconds) {
+              const income = 90000;
+              state.game.company.cash += income;
+              state.game.company.ledger.push({
+                id: uuidv4(),
+                atGameSeconds: world.totalGameSeconds,
+                kind: 'passive_income',
+                amount: income,
+                label: `Building supply income - ${facility.name}`,
+              });
+            }
+          });
+          
+          // Lease payments
+          Object.values(state.game.assets.physical).forEach((asset) => {
+            if (asset.isLeased && asset.lease) {
+              if (asset.lease.lastChargedWeekIndex < currentWeek) {
+                state.game.company.cash -= asset.lease.weeklyPayment;
+                state.game.company.ledger.push({
+                  id: uuidv4(),
+                  atGameSeconds: world.totalGameSeconds,
+                  kind: 'weekly_lease',
+                  amount: -asset.lease.weeklyPayment,
+                  label: `Lease payment - ${ASSET_DEFS[asset.defId]?.name || asset.defId}`,
+                });
+                asset.lease.lastChargedWeekIndex = currentWeek;
+              }
+            }
+          });
+          
+          // Loan minimum payment check
+          if (state.game.loans.creditLine.enabled && state.game.loans.creditLine.principalOwed > 0) {
+            const loan = state.game.loans.creditLine;
+            if (loan.lastWeeklyPaymentWeekIndex < currentWeek) {
+              // Missed payment - apply penalty
+              if (!loan.inPenalty) {
+                loan.inPenalty = true;
+                state.game.company.reputation = Math.max(0, state.game.company.reputation - 5);
+              }
+            }
+          }
+        }
+        
+        // === MONTHLY BILLING ===
         const gameDate = getGameDate(world);
         if (gameDate.getDate() === 1 && world.secondsToday < 3600) {
           const currentMonth = gameDate.getMonth();
@@ -316,21 +503,61 @@ export const useGameStore = create(
           if (!world.lastMonthlyBill || 
               world.lastMonthlyBill.year !== currentYear || 
               world.lastMonthlyBill.month !== currentMonth) {
-            // Process monthly bills
-            let totalOverhead = 0;
-            Object.values(state.game.facilities.facilities).forEach((facility) => {
-              totalOverhead += facility.overheadPerWeek * 4;
-            });
             
-            if (totalOverhead > 0) {
-              state.game.company.cash -= totalOverhead;
-              state.game.company.ledger.push({
-                id: uuidv4(),
-                atGameSeconds: world.totalGameSeconds,
-                kind: 'monthly_overhead',
-                amount: -totalOverhead,
-                label: `Monthly overhead - ${gameDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}`,
+            // Only bill after first month (Feb 2026+)
+            if (currentYear > 2026 || (currentYear === 2026 && currentMonth >= 1)) {
+              // Facility overhead
+              let totalOverhead = 0;
+              Object.values(state.game.facilities.facilities).forEach((facility) => {
+                totalOverhead += facility.overheadPerWeek * 4;
               });
+              
+              if (totalOverhead > 0) {
+                state.game.company.cash -= totalOverhead;
+                state.game.company.ledger.push({
+                  id: uuidv4(),
+                  atGameSeconds: world.totalGameSeconds,
+                  kind: 'monthly_overhead',
+                  amount: -totalOverhead,
+                  label: `Monthly overhead - ${gameDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}`,
+                });
+              }
+              
+              // Staff wages
+              let totalWages = 0;
+              Object.values(state.game.staff.staff).forEach((staff) => {
+                const config = STAFF_CONFIG[staff.role];
+                if (config) {
+                  totalWages += config.monthlyWage;
+                }
+              });
+              
+              if (totalWages > 0) {
+                state.game.company.cash -= totalWages;
+                state.game.company.ledger.push({
+                  id: uuidv4(),
+                  atGameSeconds: world.totalGameSeconds,
+                  kind: 'monthly_overhead',
+                  amount: -totalWages,
+                  label: `Staff wages - ${gameDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}`,
+                });
+              }
+              
+              // Loan interest
+              if (state.game.loans.creditLine.enabled && state.game.loans.creditLine.principalOwed > 0) {
+                const loan = state.game.loans.creditLine;
+                const rate = loan.inPenalty ? loan.penaltyInterestRateMonthly : loan.interestRateMonthly;
+                const interest = Math.round(loan.principalOwed * rate);
+                loan.principalOwed += interest;
+                
+                state.game.company.ledger.push({
+                  id: uuidv4(),
+                  atGameSeconds: world.totalGameSeconds,
+                  kind: 'loan_interest',
+                  amount: -interest,
+                  label: `Loan interest${loan.inPenalty ? ' (penalty rate)' : ''}`,
+                });
+              }
             }
             
             world.lastMonthlyBill = { year: currentYear, month: currentMonth };
@@ -340,11 +567,10 @@ export const useGameStore = create(
         // Autosave every in-game hour
         if (world.totalGameSeconds - world.lastAutosaveGameSeconds >= 3600) {
           world.lastAutosaveGameSeconds = world.totalGameSeconds;
-          // Trigger autosave (will be called after this tick)
         }
       });
       
-      // Check if autosave needed
+      // Trigger autosave if needed
       const newGame = get().game;
       if (newGame && newGame.world.totalGameSeconds - newGame.world.lastAutosaveGameSeconds < 60) {
         get().saveGame();
@@ -362,11 +588,16 @@ export const useGameStore = create(
     },
     
     buySite: (siteId, facilityType, facilitySize) => {
-      const { game } = get();
+      const { game, addNotification } = get();
       if (!game) return { success: false, error: 'No active game' };
       
       const site = game.map.sites[siteId];
       if (!site) return { success: false, error: 'Site not found' };
+      
+      // Check if already owned
+      if (game.map.ownedSiteIds[siteId]) {
+        return { success: false, error: 'You already own a facility at this site' };
+      }
       
       // Check if this is first purchase (must be Small Transport Depot)
       const hasDepot = Object.keys(game.facilities.depots).length > 0;
@@ -374,8 +605,8 @@ export const useGameStore = create(
         if (facilityType !== 'transport_depot' || facilitySize !== 'small') {
           return { success: false, error: 'First purchase must be a Small Transport Depot' };
         }
-        if (site.kind !== 'industrial_estate') {
-          return { success: false, error: 'First depot must be on an industrial estate' };
+        if (site.kind !== 'industrial_estate' || !site.tags?.includes('depot_available')) {
+          return { success: false, error: 'First depot must be at an industrial estate with depot space' };
         }
       }
       
@@ -394,7 +625,7 @@ export const useGameStore = create(
       if (!price) return { success: false, error: 'Invalid facility type or size' };
       
       if (game.company.cash < price) {
-        return { success: false, error: 'Insufficient funds' };
+        return { success: false, error: `Insufficient funds. Need ${formatCurrency(price)}` };
       }
       
       // Process purchase
@@ -416,20 +647,30 @@ export const useGameStore = create(
         // Mark site as owned
         state.game.map.ownedSiteIds[siteId] = true;
         
-        // Create facility
-        const overheadPerWeek = Math.round(price * 0.005); // 0.5% of purchase price per week
-        const capacityMax = facilitySize === 'small' ? 10 : facilitySize === 'medium' ? 25 : 50;
+        // Calculate overhead and capacity
+        const overheadPerWeek = Math.round(price * 0.005);
+        const capacities = {
+          transport_depot: { small: 10, medium: 25, large: 50 },
+          waste_yard: { small: 500, medium: 1500, large: 4000 },
+          mechanic_garage: { small: 3, medium: 6, large: 12 },
+          quarry: { small: 2000, medium: 5000, large: 10000 },
+          trading_yard: { small: 300, medium: 800, large: 2000 },
+          office: { small: 10, medium: 25, large: 50 },
+          building_supply_store: { small: 200, medium: 500, large: 1000 },
+        };
+        const capacityMax = capacities[facilityType]?.[facilitySize] || 10;
         
+        // Create facility
         state.game.facilities.facilities[facilityId] = {
           id: facilityId,
           siteId,
           type: facilityType,
           size: facilitySize,
-          name: `${site.name} ${facilityType.replace(/_/g, ' ')}`,
+          name: `${site.name} ${facilityType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`,
           createdAtGameSeconds: state.game.world.totalGameSeconds,
           purchasePrice: price,
           overheadPerWeek,
-          capacityKind: facilityType === 'transport_depot' ? 'units' : 'tonnes',
+          capacityKind: ['transport_depot', 'mechanic_garage'].includes(facilityType) ? 'units' : 'tonnes',
           capacityMax,
           tonnesStored: 0,
           storageUnitsUsed: 0,
@@ -437,7 +678,9 @@ export const useGameStore = create(
           compliance: 100,
           complianceManagerHiredAtGameSeconds: null,
           closedAtGameSeconds: null,
-          requiredStaff: facilityType === 'transport_depot' ? { site_manager: 1 } : {},
+          requiredStaff: facilityType === 'transport_depot' ? { site_manager: 1 } : 
+                         facilityType === 'quarry' ? { site_manager: 1, machine_operator: 2 } :
+                         facilityType === 'mechanic_garage' ? { mechanic: 1 } : {},
         };
         
         // If it's a depot, create depot record
@@ -449,11 +692,14 @@ export const useGameStore = create(
             storageMax: capacityMax,
           };
           
-          // Unlock the game
-          state.game.ui.hasUnlockedGame = true;
+          // Unlock the game on first depot
+          if (!state.game.ui.hasUnlockedGame) {
+            state.game.ui.hasUnlockedGame = true;
+          }
         }
       });
       
+      addNotification(`Purchased ${facilityType.replace(/_/g, ' ')} at ${site.name}!`, 'success');
       get().saveGame();
       return { success: true };
     },
@@ -475,33 +721,20 @@ export const useGameStore = create(
     // ========== STAFF ACTIONS ==========
     
     hireStaff: (facilityId, role) => {
-      const { game } = get();
+      const { game, addNotification } = get();
       if (!game) return { success: false, error: 'No active game' };
       
-      const hireCosts = {
-        driver: 2000,
-        site_manager: 3500,
-        transport_manager: 4000,
-        compliance_manager: 3000,
-        yard_operative: 1800,
-        machine_operator: 2200,
-        weighbridge_clerk: 1500,
-        mechanic: 2500,
-        admin: 1600,
-        regional_manager: 5000,
-        loader_driver: 2100,
-      };
+      const config = STAFF_CONFIG[role];
+      if (!config) return { success: false, error: 'Unknown staff role' };
       
-      const cost = hireCosts[role] || 2000;
-      
-      if (game.company.cash < cost) {
-        return { success: false, error: 'Insufficient funds for hiring' };
+      if (game.company.cash < config.hireCost) {
+        return { success: false, error: `Insufficient funds. Need ${formatCurrency(config.hireCost)}` };
       }
       
       set((state) => {
         const staffId = uuidv4();
         
-        state.game.company.cash -= cost;
+        state.game.company.cash -= config.hireCost;
         
         state.game.staff.staff[staffId] = {
           id: staffId,
@@ -517,18 +750,22 @@ export const useGameStore = create(
           id: uuidv4(),
           atGameSeconds: state.game.world.totalGameSeconds,
           kind: 'other',
-          amount: -cost,
+          amount: -config.hireCost,
           label: `Hired ${role.replace(/_/g, ' ')}`,
         });
       });
       
+      addNotification(`Hired new ${role.replace(/_/g, ' ')}!`, 'success');
       get().saveGame();
       return { success: true };
     },
     
     fireStaff: (staffId) => {
+      const { addNotification } = get();
       set((state) => {
         if (state.game?.staff.staff[staffId]) {
+          const staff = state.game.staff.staff[staffId];
+          addNotification(`${staff.name} has been dismissed.`, 'info');
           delete state.game.staff.staff[staffId];
         }
       });
@@ -554,35 +791,17 @@ export const useGameStore = create(
     },
     
     buyAsset: (defId, depotId, isLeased = false) => {
-      const { game } = get();
+      const { game, addNotification } = get();
       if (!game) return { success: false, error: 'No active game' };
       
-      // Asset definitions
-      const assetDefs = {
-        // Vehicles
-        small_tipper: { kind: 'vehicle', name: 'Small Tipper', price: 35000, leaseDeposit: 5000, leaseWeekly: 350 },
-        large_tipper: { kind: 'vehicle', name: 'Large Tipper', price: 65000, leaseDeposit: 8000, leaseWeekly: 500 },
-        skip_truck: { kind: 'vehicle', name: 'Skip Truck', price: 85000, leaseDeposit: 12000, leaseWeekly: 650 },
-        grab_lorry: { kind: 'vehicle', name: 'Grab Lorry', price: 120000, leaseDeposit: 15000, leaseWeekly: 850 },
-        artic_unit: { kind: 'vehicle', name: 'Artic Unit', price: 95000, leaseDeposit: 12000, leaseWeekly: 700 },
-        // Trailers
-        flatbed_trailer: { kind: 'trailer', name: 'Flatbed Trailer', price: 15000, leaseDeposit: 2000, leaseWeekly: 120 },
-        tipper_trailer: { kind: 'trailer', name: 'Tipper Trailer', price: 25000, leaseDeposit: 3500, leaseWeekly: 200 },
-        walking_floor: { kind: 'trailer', name: 'Walking Floor Trailer', price: 45000, leaseDeposit: 6000, leaseWeekly: 350 },
-        // Containers
-        skip_8yd: { kind: 'container', name: '8 Yard Skip', price: 800 },
-        skip_12yd: { kind: 'container', name: '12 Yard Skip', price: 1200 },
-        skip_16yd: { kind: 'container', name: '16 Yard Skip', price: 1600 },
-        roro_20yd: { kind: 'container', name: '20 Yard RoRo', price: 3500 },
-        roro_40yd: { kind: 'container', name: '40 Yard RoRo', price: 5500 },
-      };
-      
-      const def = assetDefs[defId];
+      const def = ASSET_DEFS[defId];
       if (!def) return { success: false, error: 'Unknown asset type' };
       
       const cost = isLeased ? def.leaseDeposit : def.price;
+      if (!cost) return { success: false, error: 'This item cannot be leased' };
+      
       if (game.company.cash < cost) {
-        return { success: false, error: 'Insufficient funds' };
+        return { success: false, error: `Insufficient funds. Need ${formatCurrency(cost)}` };
       }
       
       // Check depot capacity
@@ -591,7 +810,7 @@ export const useGameStore = create(
       
       const currentUsage = Object.values(game.assets.physical).filter(a => a.depotId === depotId).length;
       if (currentUsage >= depot.storageMax) {
-        return { success: false, error: 'Depot at capacity' };
+        return { success: false, error: 'Depot storage is full' };
       }
       
       set((state) => {
@@ -611,7 +830,7 @@ export const useGameStore = create(
           lease: isLeased ? {
             depositPaid: def.leaseDeposit,
             weeklyPayment: def.leaseWeekly,
-            lastChargedWeekIndex: Math.floor(gameDay / 7),
+            lastChargedWeekIndex: getWeekIndex(state.game.world.totalGameSeconds),
           } : undefined,
           plate: def.kind === 'vehicle' ? generatePlate() : undefined,
           condition: def.kind === 'vehicle' ? 100 : undefined,
@@ -622,66 +841,186 @@ export const useGameStore = create(
           atGameSeconds: state.game.world.totalGameSeconds,
           kind: isLeased ? 'other' : 'asset_purchase',
           amount: -cost,
-          label: isLeased ? `Lease deposit for ${def.name}` : `Purchased ${def.name}`,
+          label: isLeased ? `Lease deposit - ${def.name}` : `Purchased ${def.name}`,
         });
       });
       
+      addNotification(`${isLeased ? 'Leased' : 'Purchased'} ${def.name}!`, 'success');
       get().saveGame();
       return { success: true };
     },
     
+    sellAsset: (assetId) => {
+      const { game, addNotification } = get();
+      if (!game) return { success: false, error: 'No active game' };
+      
+      const asset = game.assets.physical[assetId];
+      if (!asset) return { success: false, error: 'Asset not found' };
+      
+      if (asset.isLeased) {
+        return { success: false, error: 'Cannot sell leased assets' };
+      }
+      
+      const def = ASSET_DEFS[asset.defId];
+      const sellPrice = Math.round(def.price * 0.6 * (asset.condition || 100) / 100);
+      
+      set((state) => {
+        state.game.company.cash += sellPrice;
+        delete state.game.assets.physical[assetId];
+        
+        state.game.company.ledger.push({
+          id: uuidv4(),
+          atGameSeconds: state.game.world.totalGameSeconds,
+          kind: 'asset_sale',
+          amount: sellPrice,
+          label: `Sold ${def.name}`,
+        });
+      });
+      
+      addNotification(`Sold ${def.name} for ${formatCurrency(sellPrice)}`, 'success');
+      get().saveGame();
+      return { success: true };
+    },
+    
+    // ========== REPAIR ACTIONS ==========
+    
+    startRepair: (vehicleId) => {
+      const { game, addNotification } = get();
+      if (!game) return { success: false, error: 'No active game' };
+      
+      const vehicle = game.assets.physical[vehicleId];
+      if (!vehicle || vehicle.kind !== 'vehicle') {
+        return { success: false, error: 'Vehicle not found' };
+      }
+      
+      if (vehicle.inRepair) {
+        return { success: false, error: 'Vehicle already in repair' };
+      }
+      
+      // Check for mechanic access
+      const hasMechanic = Object.values(game.facilities.facilities).some(f => 
+        f.type === 'mechanic_garage' && !f.closedAtGameSeconds
+      );
+      
+      if (!hasMechanic) {
+        return { success: false, error: 'No mechanic garage available' };
+      }
+      
+      // Repair cost: £50 per condition point to restore
+      const pointsToRepair = 100 - vehicle.condition;
+      const repairCost = pointsToRepair * 50;
+      const repairTime = pointsToRepair * 60; // 1 minute per point
+      
+      if (game.company.cash < repairCost) {
+        return { success: false, error: `Insufficient funds. Need ${formatCurrency(repairCost)}` };
+      }
+      
+      set((state) => {
+        const v = state.game.assets.physical[vehicleId];
+        state.game.company.cash -= repairCost;
+        v.inRepair = {
+          startedAtGameSeconds: state.game.world.totalGameSeconds,
+          completesAtGameSeconds: state.game.world.totalGameSeconds + repairTime,
+          repairCost,
+        };
+        
+        state.game.company.ledger.push({
+          id: uuidv4(),
+          atGameSeconds: state.game.world.totalGameSeconds,
+          kind: 'other',
+          amount: -repairCost,
+          label: `Vehicle repair - ${v.plate}`,
+        });
+      });
+      
+      addNotification(`Repair started for ${vehicle.plate}`, 'info');
+      get().saveGame();
+      return { success: true };
+    },
+    
+    // Process repairs (called by SimRunner)
+    processRepairs: () => {
+      const { game, addNotification } = get();
+      if (!game) return;
+      
+      const currentTime = game.world.totalGameSeconds;
+      
+      set((state) => {
+        Object.values(state.game.assets.physical).forEach((asset) => {
+          if (asset.inRepair && asset.inRepair.completesAtGameSeconds <= currentTime) {
+            asset.condition = 100;
+            delete asset.inRepair;
+          }
+        });
+      });
+    },
+    
     // ========== CONTRACT ACTIONS ==========
     
-    generateContracts: () => {
+    generateContracts: (count = 8) => {
+      const { game } = get();
+      if (!game) return;
+      
       set((state) => {
-        if (!state.game) return;
-        
-        // Generate some random contracts
         const contractTypes = ['skip_hire', 'grab_collection', 'work_haulage'];
+        const sites = Object.values(state.game.map.sites);
         
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < count; i++) {
           const contractId = uuidv4();
           const type = contractTypes[Math.floor(Math.random() * contractTypes.length)];
           
           const payouts = {
-            skip_hire: { base: 150, variance: 100 },
-            grab_collection: { base: 350, variance: 200 },
-            work_haulage: { base: 500, variance: 300 },
+            skip_hire: { base: 150, variance: 150 },
+            grab_collection: { base: 350, variance: 250 },
+            work_haulage: { base: 500, variance: 400 },
           };
           
           const payout = payouts[type].base + Math.floor(Math.random() * payouts[type].variance);
+          const pickupSite = sites[Math.floor(Math.random() * sites.length)];
+          const dropoffSite = sites[Math.floor(Math.random() * sites.length)];
           
           state.game.contracts.byId[contractId] = {
             id: contractId,
             type,
             status: 'available',
-            title: `${type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Job #${Math.floor(Math.random() * 9000) + 1000}`,
-            description: `Standard ${type.replace(/_/g, ' ')} operation`,
+            title: `${type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} #${Math.floor(Math.random() * 9000) + 1000}`,
+            description: type === 'skip_hire' ? 'Deliver and collect skip container' :
+                        type === 'grab_collection' ? 'Collect loose waste material' :
+                        'Transport materials to site',
             createdAtGameSeconds: state.game.world.totalGameSeconds,
             payout,
-            penaltyOnCancel: Math.round(payout * 0.2),
+            penaltyOnCancel: Math.round(payout * 0.25),
             repHitOnFail: 5,
             requirements: {
               requiresDriver: true,
-              requiresVehicleType: type === 'skip_hire' ? 'skip_truck' : type === 'grab_collection' ? 'grab_lorry' : undefined,
+              requiresVehicleType: type === 'skip_hire' ? 'skip_truck' : 
+                                  type === 'grab_collection' ? 'grab_lorry' : undefined,
+              requiresContainerType: type === 'skip_hire' ? 'skip' : undefined,
             },
+            pickupSiteId: pickupSite?.id,
+            dropoffSiteId: dropoffSite?.id,
+            tonnes: type === 'work_haulage' ? 10 + Math.floor(Math.random() * 20) : undefined,
           };
         }
+        
+        state.game.contracts.lastGeneratedGameSeconds = state.game.world.totalGameSeconds;
       });
     },
     
     acceptContract: (contractId) => {
+      const { addNotification } = get();
       set((state) => {
         if (state.game?.contracts.byId[contractId]) {
           state.game.contracts.byId[contractId].status = 'accepted';
           state.game.contracts.byId[contractId].acceptedAtGameSeconds = state.game.world.totalGameSeconds;
         }
       });
+      addNotification('Contract accepted!', 'success');
       get().saveGame();
     },
     
     cancelContract: (contractId) => {
-      const { game } = get();
+      const { game, addNotification } = get();
       if (!game) return;
       
       const contract = game.contracts.byId[contractId];
@@ -701,13 +1040,14 @@ export const useGameStore = create(
         });
       });
       
+      addNotification(`Contract cancelled. Penalty: ${formatCurrency(contract.penaltyOnCancel)}`, 'warning');
       get().saveGame();
     },
     
     // ========== DISPATCH ACTIONS ==========
     
-    createDispatchJob: (contractId, driverId, vehicleId, trailerId, containerId) => {
-      const { game } = get();
+    createDispatchJob: (contractId, driverId, vehicleId, trailerId = null, containerId = null) => {
+      const { game, addNotification } = get();
       if (!game) return { success: false, error: 'No active game' };
       
       const contract = game.contracts.byId[contractId];
@@ -720,19 +1060,33 @@ export const useGameStore = create(
         return { success: false, error: 'Valid driver required' };
       }
       
+      // Check if driver is available
+      if (Object.values(game.dispatch.activeJobs).some(j => j.driverId === driverId)) {
+        return { success: false, error: 'Driver is already on a job' };
+      }
+      
       const vehicle = game.assets.physical[vehicleId];
       if (!vehicle || vehicle.kind !== 'vehicle') {
         return { success: false, error: 'Valid vehicle required' };
       }
       
       if (vehicle.condition < 10) {
-        return { success: false, error: 'Vehicle condition too low (min 10%)' };
+        return { success: false, error: 'Vehicle condition too low (min 10%). Repair first.' };
+      }
+      
+      if (vehicle.inRepair) {
+        return { success: false, error: 'Vehicle is in repair' };
+      }
+      
+      // Check if vehicle is available
+      if (Object.values(game.dispatch.activeJobs).some(j => j.vehicleAssetId === vehicleId)) {
+        return { success: false, error: 'Vehicle is already on a job' };
       }
       
       set((state) => {
         const jobId = uuidv4();
         const distanceKm = 20 + Math.floor(Math.random() * 80); // 20-100km
-        const durationSeconds = distanceKm * 120; // ~2 min per km
+        const durationSeconds = distanceKm * 90; // ~1.5 min per km at game speed
         
         state.game.dispatch.activeJobs[jobId] = {
           id: jobId,
@@ -745,32 +1099,42 @@ export const useGameStore = create(
           startedAtGameSeconds: state.game.world.totalGameSeconds,
           completesAtGameSeconds: state.game.world.totalGameSeconds + durationSeconds,
           distanceKm,
-          conditionWear: Math.ceil(distanceKm * 0.1), // 0.1% per km
+          conditionWear: Math.ceil(distanceKm * 0.15), // 0.15% per km
         };
         
         state.game.contracts.byId[contractId].status = 'in_progress';
       });
       
+      addNotification(`Job dispatched: ${contract.title}`, 'success');
       get().saveGame();
       return { success: true };
     },
     
-    // Check and complete dispatch jobs (called by SimRunner)
+    // Process dispatch jobs (called by SimRunner)
     processDispatchJobs: () => {
-      const { game } = get();
+      const { game, addNotification } = get();
       if (!game) return;
       
       const currentTime = game.world.totalGameSeconds;
+      const completedIds = [];
       
-      set((state) => {
-        Object.values(state.game.dispatch.activeJobs).forEach((job) => {
-          if (job.completesAtGameSeconds <= currentTime && job.status !== 'completed') {
-            // Complete the job
+      Object.values(game.dispatch.activeJobs).forEach((job) => {
+        if (job.completesAtGameSeconds <= currentTime && job.status !== 'completed') {
+          completedIds.push(job.id);
+        }
+      });
+      
+      if (completedIds.length > 0) {
+        set((state) => {
+          completedIds.forEach((jobId) => {
+            const job = state.game.dispatch.activeJobs[jobId];
+            if (!job) return;
+            
             job.status = 'completed';
             
             // Move to completed
-            state.game.dispatch.completedJobs[job.id] = { ...job };
-            delete state.game.dispatch.activeJobs[job.id];
+            state.game.dispatch.completedJobs[jobId] = { ...job };
+            delete state.game.dispatch.activeJobs[jobId];
             
             // Complete the contract
             const contract = state.game.contracts.byId[job.contractId];
@@ -780,12 +1144,14 @@ export const useGameStore = create(
               
               // Pay out
               state.game.company.cash += contract.payout;
+              state.game.company.reputation = Math.min(100, state.game.company.reputation + 1);
+              
               state.game.company.ledger.push({
                 id: uuidv4(),
                 atGameSeconds: currentTime,
                 kind: 'contract_income',
                 amount: contract.payout,
-                label: `Contract completed: ${contract.title}`,
+                label: `Completed: ${contract.title}`,
               });
             }
             
@@ -794,33 +1160,116 @@ export const useGameStore = create(
             if (vehicle && vehicle.condition !== undefined) {
               vehicle.condition = Math.max(0, vehicle.condition - job.conditionWear);
             }
-          }
+          });
+        });
+        
+        completedIds.forEach(() => {
+          addNotification('Job completed! Payment received.', 'success');
+        });
+      }
+    },
+    
+    // ========== LOAN ACTIONS ==========
+    
+    takeLoan: (amount) => {
+      const { game, addNotification } = get();
+      if (!game) return { success: false, error: 'No active game' };
+      
+      if (amount < 10000 || amount > 500000) {
+        return { success: false, error: 'Loan amount must be between £10,000 and £500,000' };
+      }
+      
+      set((state) => {
+        state.game.loans.creditLine.enabled = true;
+        state.game.loans.creditLine.principalOwed += amount;
+        state.game.company.cash += amount;
+        
+        state.game.company.ledger.push({
+          id: uuidv4(),
+          atGameSeconds: state.game.world.totalGameSeconds,
+          kind: 'other',
+          amount: amount,
+          label: `Loan received`,
         });
       });
+      
+      addNotification(`Loan of ${formatCurrency(amount)} received!`, 'success');
+      get().saveGame();
+      return { success: true };
+    },
+    
+    repayLoan: (amount) => {
+      const { game, addNotification } = get();
+      if (!game) return { success: false, error: 'No active game' };
+      
+      const loan = game.loans.creditLine;
+      if (!loan.enabled || loan.principalOwed <= 0) {
+        return { success: false, error: 'No loan to repay' };
+      }
+      
+      const actualPayment = Math.min(amount, loan.principalOwed, game.company.cash);
+      if (actualPayment < 500 && loan.principalOwed >= 500) {
+        return { success: false, error: 'Minimum payment is £500' };
+      }
+      
+      set((state) => {
+        state.game.company.cash -= actualPayment;
+        state.game.loans.creditLine.principalOwed -= actualPayment;
+        state.game.loans.creditLine.lastWeeklyPaymentWeekIndex = getWeekIndex(state.game.world.totalGameSeconds);
+        
+        if (state.game.loans.creditLine.principalOwed <= 0) {
+          state.game.loans.creditLine.enabled = false;
+          state.game.loans.creditLine.inPenalty = false;
+        } else if (actualPayment >= 500) {
+          state.game.loans.creditLine.inPenalty = false;
+        }
+        
+        state.game.company.ledger.push({
+          id: uuidv4(),
+          atGameSeconds: state.game.world.totalGameSeconds,
+          kind: 'loan_payment',
+          amount: -actualPayment,
+          label: `Loan repayment`,
+        });
+      });
+      
+      addNotification(`Repaid ${formatCurrency(actualPayment)} on loan.`, 'success');
+      get().saveGame();
+      return { success: true };
+    },
+    
+    // ========== MARKETPLACE ACTIONS ==========
+    
+    sellMaterial: (facilityId, materialId, tonnes) => {
+      const { game, addNotification } = get();
+      if (!game) return { success: false, error: 'No active game' };
+      
+      const inventory = game.marketplace.inventoryTonnesByFacility[facilityId];
+      if (!inventory || !inventory[materialId] || inventory[materialId] < tonnes) {
+        return { success: false, error: 'Insufficient material in inventory' };
+      }
+      
+      const price = game.marketplace.prices[materialId]?.sell || 0;
+      const totalValue = tonnes * price;
+      
+      set((state) => {
+        state.game.marketplace.inventoryTonnesByFacility[facilityId][materialId] -= tonnes;
+        state.game.company.cash += totalValue;
+        
+        state.game.company.ledger.push({
+          id: uuidv4(),
+          atGameSeconds: state.game.world.totalGameSeconds,
+          kind: 'contract_income',
+          amount: totalValue,
+          label: `Sold ${tonnes}t of ${materialId}`,
+        });
+      });
+      
+      addNotification(`Sold ${tonnes}t for ${formatCurrency(totalValue)}!`, 'success');
+      get().saveGame();
+      return { success: true };
     },
   }))
 );
-
-// Helper functions
-function generateStaffName() {
-  const firstNames = ['James', 'John', 'David', 'Michael', 'Chris', 'Sarah', 'Emma', 'Lisa', 'Karen', 'Michelle', 'Daniel', 'Mark', 'Paul', 'Andrew', 'Steven'];
-  const lastNames = ['Smith', 'Jones', 'Williams', 'Brown', 'Taylor', 'Davies', 'Wilson', 'Evans', 'Thomas', 'Roberts', 'Johnson', 'Walker', 'Wright', 'Robinson', 'Hall'];
-  return `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
-}
-
-function generatePlate() {
-  const letters = 'ABCDEFGHJKLMNPRSTUVWXYZ';
-  const nums = '0123456789';
-  let plate = '';
-  plate += letters[Math.floor(Math.random() * letters.length)];
-  plate += letters[Math.floor(Math.random() * letters.length)];
-  plate += nums[Math.floor(Math.random() * nums.length)];
-  plate += nums[Math.floor(Math.random() * nums.length)];
-  plate += ' ';
-  plate += letters[Math.floor(Math.random() * letters.length)];
-  plate += letters[Math.floor(Math.random() * letters.length)];
-  plate += letters[Math.floor(Math.random() * letters.length)];
-  return plate;
-}
 
 export default useGameStore;
