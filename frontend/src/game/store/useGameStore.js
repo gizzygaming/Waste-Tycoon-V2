@@ -1170,6 +1170,17 @@ export const useGameStore = create(
         return { success: false, error: 'Driver is already on a job' };
       }
       
+      // Check if driver needs rest
+      if (driver.restUntilGameSeconds && driver.restUntilGameSeconds > game.world.totalGameSeconds) {
+        const restMinutes = Math.ceil((driver.restUntilGameSeconds - game.world.totalGameSeconds) / 60);
+        return { success: false, error: `Driver needs rest (${restMinutes} min remaining)` };
+      }
+      
+      // Check driver hours
+      if (driver.hoursWorkedToday >= DRIVER_MAX_HOURS) {
+        return { success: false, error: `Driver has worked max hours today (${DRIVER_MAX_HOURS}h)` };
+      }
+      
       const vehicle = game.assets.physical[vehicleId];
       if (!vehicle || vehicle.kind !== 'vehicle') {
         return { success: false, error: 'Valid vehicle required' };
