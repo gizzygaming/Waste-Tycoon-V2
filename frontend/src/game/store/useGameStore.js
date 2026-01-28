@@ -34,6 +34,23 @@ export const getWeekIndex = (totalGameSeconds) => {
   return Math.floor(totalGameSeconds / (86400 * 7));
 };
 
+// Get day index from game seconds
+export const getDayIndex = (totalGameSeconds) => {
+  return Math.floor(totalGameSeconds / 86400);
+};
+
+// Calculate office points bonus
+export const getOfficePointsBonus = (facilities) => {
+  const officeCount = Object.values(facilities).filter(f => f.type === 'office' && !f.closedAtGameSeconds).length;
+  const points = officeCount * 10;
+  return {
+    points,
+    costReduction: Math.min(0.15, points * 0.005), // Up to 15% cost reduction
+    contractBonus: Math.min(0.20, points * 0.007), // Up to 20% better contract payouts
+    complianceBoost: Math.min(0.10, points * 0.003), // Up to 10% slower compliance decay
+  };
+};
+
 // Asset definitions
 export const ASSET_DEFS = {
   // Vehicles
@@ -56,7 +73,7 @@ export const ASSET_DEFS = {
 
 // Staff hire costs and wages
 export const STAFF_CONFIG = {
-  driver: { hireCost: 2000, monthlyWage: 2800 },
+  driver: { hireCost: 2000, monthlyWage: 2800, maxHoursPerDay: 15 },
   site_manager: { hireCost: 3500, monthlyWage: 3500 },
   transport_manager: { hireCost: 4000, monthlyWage: 4200 },
   compliance_manager: { hireCost: 3000, monthlyWage: 3200 },
@@ -68,6 +85,10 @@ export const STAFF_CONFIG = {
   regional_manager: { hireCost: 5000, monthlyWage: 5500 },
   loader_driver: { hireCost: 2100, monthlyWage: 2500 },
 };
+
+// Driver rest time required (10 hours)
+export const DRIVER_REST_HOURS = 10;
+export const DRIVER_MAX_HOURS = 15;
 
 // Material prices
 export const MATERIAL_PRICES = {
