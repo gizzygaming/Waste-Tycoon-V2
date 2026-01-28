@@ -1247,10 +1247,36 @@ export const useGameStore = create(
       const currentTime = game.world.totalGameSeconds;
       const completedIds = [];
       
-      Object.values(game.dispatch.activeJobs).forEach((job) => {
-        if (job.completesAtGameSeconds <= currentTime && job.status !== 'completed') {
-          completedIds.push(job.id);
-        }
+      // Update all active jobs' progress and positions
+      set((state) => {
+        Object.values(state.game.dispatch.activeJobs).forEach((job) => {
+          if (!job || job.status === 'completed') return;
+          
+          // Calculate progress (0 to 1) based on time
+          const elapsed = currentTime - job.startedAtGameSeconds;
+          const duration = job.completesAtGameSeconds - job.startedAtGameSeconds;
+          const progress = Math.min(1, Math.max(0, elapsed / duration));
+          
+          job.progress = progress;
+          
+          // Update status based on progress
+          if (progress < 0.3) {
+            job.status = 'en_route_pickup';
+          } else if (progress < 0.5) {
+            job.status = 'loading';
+          } else if (progress < 0.8) {
+            job.status = 'en_route_delivery';
+          } else if (progress < 0.95) {
+            job.status = 'unloading';
+          } else {
+            job.status = 'returning';
+          }
+          
+          // Check if completed
+          if (job.completesAtGameSeconds <= currentTime) {
+            completedIds.push(job.id);
+          }
+        });
       });
       
       if (completedIds.length > 0) {
@@ -1260,6 +1286,7 @@ export const useGameStore = create(
             if (!job) return;
             
             job.status = 'completed';
+            job.progress = 1;
             
             // Move to completed
             state.game.dispatch.completedJobs[jobId] = { ...job };
