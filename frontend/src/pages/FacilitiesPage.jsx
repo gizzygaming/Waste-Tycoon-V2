@@ -80,31 +80,31 @@ export const FacilitiesPage = () => {
   };
   
   return (
-    <div className="p-6" data-testid="facilities-page">
+    <div className="p-3 lg:p-6" data-testid="facilities-page">
       {/* Header with Stats */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 lg:mb-6">
         <div>
-          <h1 className="font-heading text-3xl font-black text-[var(--text-main)]">FACILITIES</h1>
-          <p className="text-[var(--text-muted)] mt-1">Manage your depots, yards, and staff</p>
+          <h1 className="font-heading text-2xl lg:text-3xl font-black text-[var(--text-main)]">FACILITIES</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Manage your depots, yards, and staff</p>
         </div>
         
-        <div className="flex gap-4">
+        <div className="flex gap-2 lg:gap-4">
           {/* Office Points */}
           <div className="card bg-[var(--secondary)]/10 border-[var(--secondary)]">
-            <div className="p-3 flex items-center gap-3">
-              <Building size={20} className="text-[var(--secondary)]" />
+            <div className="p-2 lg:p-3 flex items-center gap-2 lg:gap-3">
+              <Building size={18} className="text-[var(--secondary)] hidden sm:block" />
               <div>
-                <div className="text-[10px] text-[var(--text-muted)] uppercase">Office Points</div>
-                <div className="font-mono text-xl font-bold text-[var(--secondary)]">{officePoints}</div>
+                <div className="text-[8px] lg:text-[10px] text-[var(--text-muted)] uppercase">Office Pts</div>
+                <div className="font-mono text-lg lg:text-xl font-bold text-[var(--secondary)]">{officePoints}</div>
               </div>
             </div>
           </div>
           
           {/* Monthly Costs */}
           <div className="card">
-            <div className="p-3">
-              <div className="text-[10px] text-[var(--text-muted)] uppercase">Monthly Costs</div>
-              <div className="font-mono text-xl font-bold text-[var(--danger)]">
+            <div className="p-2 lg:p-3">
+              <div className="text-[8px] lg:text-[10px] text-[var(--text-muted)] uppercase">Monthly</div>
+              <div className="font-mono text-lg lg:text-xl font-bold text-[var(--danger)]">
                 {formatCurrency(totalOverhead + totalWages)}
               </div>
             </div>
@@ -112,11 +112,11 @@ export const FacilitiesPage = () => {
         </div>
       </div>
       
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Facilities List */}
         <div>
-          <h2 className="font-heading text-lg font-bold text-[var(--text-main)] mb-4">YOUR FACILITIES ({facilities.length})</h2>
-          <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-auto">
+          <h2 className="font-heading text-base lg:text-lg font-bold text-[var(--text-main)] mb-3 lg:mb-4">YOUR FACILITIES ({facilities.length})</h2>
+          <div className="space-y-2 max-h-[250px] lg:max-h-[calc(100vh-280px)] overflow-auto">
             {facilities.map((facility) => {
               const staffCount = Object.values(game.staff.staff).filter(s => s.facilityId === facility.id).length;
               const isSelected = selectedFacility?.id === facility.id;
@@ -152,7 +152,7 @@ export const FacilitiesPage = () => {
         </div>
         
         {/* Facility Details */}
-        <div className="col-span-2">
+        <div className="lg:col-span-2">
           {selectedFacility ? (
             <div className="card">
               {/* Header */}
@@ -188,35 +188,35 @@ export const FacilitiesPage = () => {
               
               <div className="card-content">
                 {/* Info Grid */}
-                <div className="grid grid-cols-4 gap-4 mb-6">
-                  <div className="bg-[var(--background)] p-3">
-                    <div className="text-[10px] text-[var(--text-muted)] uppercase mb-1">Type</div>
-                    <div className="font-bold text-[var(--text-main)] text-sm capitalize">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4 mb-4 lg:mb-6">
+                  <div className="bg-[var(--background)] p-2 lg:p-3">
+                    <div className="text-[8px] lg:text-[10px] text-[var(--text-muted)] uppercase mb-1">Type</div>
+                    <div className="font-bold text-[var(--text-main)] text-xs lg:text-sm capitalize">
                       {selectedFacility.type.replace(/_/g, ' ')}
                     </div>
                   </div>
-                  <div className="bg-[var(--background)] p-3">
-                    <div className="text-[10px] text-[var(--text-muted)] uppercase mb-1">Size</div>
-                    <div className="font-bold text-[var(--text-main)] text-sm capitalize">
+                  <div className="bg-[var(--background)] p-2 lg:p-3">
+                    <div className="text-[8px] lg:text-[10px] text-[var(--text-muted)] uppercase mb-1">Size</div>
+                    <div className="font-bold text-[var(--text-main)] text-xs lg:text-sm capitalize">
                       {selectedFacility.size}
                     </div>
                   </div>
-                  <div className="bg-[var(--background)] p-3">
-                    <div className="text-[10px] text-[var(--text-muted)] uppercase mb-1">Weekly Overhead</div>
-                    <div className="font-mono font-bold text-[var(--accent)] text-sm">
+                  <div className="bg-[var(--background)] p-2 lg:p-3">
+                    <div className="text-[8px] lg:text-[10px] text-[var(--text-muted)] uppercase mb-1">Weekly</div>
+                    <div className="font-mono font-bold text-[var(--accent)] text-xs lg:text-sm">
                       {formatCurrency(selectedFacility.overheadPerWeek)}
                     </div>
                   </div>
-                  <div className="bg-[var(--background)] p-3">
-                    <div className="text-[10px] text-[var(--text-muted)] uppercase mb-1">Purchase Price</div>
-                    <div className="font-mono font-bold text-[var(--text-main)] text-sm">
+                  <div className="bg-[var(--background)] p-2 lg:p-3">
+                    <div className="text-[8px] lg:text-[10px] text-[var(--text-muted)] uppercase mb-1">Price</div>
+                    <div className="font-mono font-bold text-[var(--text-main)] text-xs lg:text-sm">
                       {formatCurrency(selectedFacility.purchasePrice)}
                     </div>
                   </div>
                 </div>
                 
                 {/* Compliance & Capacity */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4 mb-4 lg:mb-6">
                   {/* Compliance */}
                   <div>
                     <div className="flex justify-between text-xs mb-2">
@@ -263,27 +263,27 @@ export const FacilitiesPage = () => {
                 </div>
                 
                 {/* Staff Section */}
-                <div className="border-t border-[var(--border)] pt-4">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-heading font-bold text-[var(--text-main)] flex items-center gap-2">
-                      <Users size={18} />
+                <div className="border-t border-[var(--border)] pt-3 lg:pt-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3 lg:mb-4">
+                    <h3 className="font-heading font-bold text-[var(--text-main)] flex items-center gap-2 text-sm lg:text-base">
+                      <Users size={16} />
                       STAFF ({facilityStaff.length})
                     </h3>
                     <button
                       onClick={() => setShowHireMenu(!showHireMenu)}
-                      className="btn-primary py-2 px-4 text-sm"
+                      className="btn-primary py-1.5 lg:py-2 px-3 lg:px-4 text-xs lg:text-sm"
                       data-testid="hire-staff-button"
                     >
-                      <UserPlus size={14} className="inline mr-2" />
+                      <UserPlus size={12} className="inline mr-1 lg:mr-2" />
                       HIRE STAFF
                     </button>
                   </div>
                   
                   {/* Hire Menu */}
                   {showHireMenu && (
-                    <div className="bg-[var(--background)] p-4 mb-4 animate-fade-in border border-[var(--border)]">
-                      <div className="text-xs text-[var(--text-muted)] uppercase mb-3">Select Role to Hire</div>
-                      <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-[var(--background)] p-3 lg:p-4 mb-3 lg:mb-4 animate-fade-in border border-[var(--border)]">
+                      <div className="text-xs text-[var(--text-muted)] uppercase mb-2 lg:mb-3">Select Role to Hire</div>
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
                         {STAFF_ROLES.map((role) => (
                           <button
                             key={role.id}
