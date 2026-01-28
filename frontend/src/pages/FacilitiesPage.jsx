@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useGameStore, formatCurrency, STAFF_CONFIG } from '../game/store/useGameStore';
 import { Building, Users, AlertTriangle, Edit2, Check, X, UserPlus, DollarSign, Shield, Warehouse } from 'lucide-react';
 
@@ -18,14 +18,16 @@ export const FacilitiesPage = () => {
   const [fireConfirm, setFireConfirm] = useState(null);
   
   const hasUnlocked = game?.ui?.hasUnlockedGame;
-  const facilities = hasUnlocked ? Object.values(game.facilities.facilities) : [];
+  const facilities = useMemo(() => 
+    hasUnlocked ? Object.values(game.facilities.facilities) : [],
+    [hasUnlocked, game?.facilities?.facilities]
+  );
   
-  // Select first facility if none selected - must be before conditional return
-  useEffect(() => {
-    if (hasUnlocked && !selectedFacilityId && facilities.length > 0) {
-      setSelectedFacilityId(facilities[0].id);
-    }
-  }, [hasUnlocked, selectedFacilityId, facilities.length, facilities]);
+  // Get first facility ID for initial selection
+  const firstFacilityId = facilities.length > 0 ? facilities[0].id : null;
+  
+  // Use first facility if none selected
+  const activeFacilityId = selectedFacilityId || firstFacilityId;
   
   if (!hasUnlocked) {
     return (
@@ -39,7 +41,7 @@ export const FacilitiesPage = () => {
     );
   }
   
-  const selectedFacility = selectedFacilityId ? game.facilities.facilities[selectedFacilityId] : facilities[0];
+  const selectedFacility = activeFacilityId ? game.facilities.facilities[activeFacilityId] : null;
   const facilityStaff = selectedFacility 
     ? Object.values(game.staff.staff).filter(s => s.facilityId === selectedFacility.id)
     : [];
@@ -125,8 +127,8 @@ export const FacilitiesPage = () => {
                 <button
                   key={facility.id}
                   onClick={() => setSelectedFacilityId(facility.id)}
-                  className={`w-full text-left p-4 border transition-colors ${
-                    isSelected
+                  className={`w-full text-left p-3 lg:p-4 border transition-colors ${
+                    activeFacilityId === facility.id
                       ? 'border-[var(--primary)] bg-[var(--primary)]/10'
                       : 'border-[var(--border)] hover:border-[var(--muted)] bg-[var(--surface)]'
                   }`}
