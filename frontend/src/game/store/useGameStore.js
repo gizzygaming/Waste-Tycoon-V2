@@ -1303,29 +1303,49 @@ export const useGameStore = create(
             state.game.dispatch.completedJobs[jobId] = { ...job };
             delete state.game.dispatch.activeJobs[jobId];
             
-            // Complete the contract
-            const contract = state.game.contracts.byId[job.contractId];
-            if (contract) {
-              contract.status = 'completed';
-              contract.completedAtGameSeconds = currentTime;
-              
-              // Pay out
-              state.game.company.cash += contract.payout;
-              state.game.company.reputation = Math.min(100, state.game.company.reputation + 1);
-              
+            // Handle different job types
+            if (job.type === 'material_delivery') {
+              // Material delivery job - pay out
+              state.game.company.cash += job.expectedPayout;
               state.game.company.ledger.push({
                 id: uuidv4(),
                 atGameSeconds: currentTime,
                 kind: 'contract_income',
-                amount: contract.payout,
-                label: `Completed: ${contract.title}`,
+                amount: job.expectedPayout,
+                label: `Material delivery: ${job.tonnes}t of ${job.materialId}`,
               });
+            } else {
+              // Regular contract job
+              const contract = state.game.contracts.byId[job.contractId];
+              if (contract) {
+                contract.status = 'completed';
+                contract.completedAtGameSeconds = currentTime;
+                
+                // Pay out
+                state.game.company.cash += contract.payout;
+                state.game.company.reputation = Math.min(100, state.game.company.reputation + 1);
+                
+                state.game.company.ledger.push({
+                  id: uuidv4(),
+                  atGameSeconds: currentTime,
+                  kind: 'contract_income',
+                  amount: contract.payout,
+                  label: `Completed: ${contract.title}`,
+                });
+              }
             }
             
             // Apply vehicle wear
             const vehicle = state.game.assets.physical[job.vehicleAssetId];
             if (vehicle && vehicle.condition !== undefined) {
               vehicle.condition = Math.max(0, vehicle.condition - job.conditionWear);
+            }
+            
+            // Update driver hours
+            const driver = state.game.staff.staff[job.driverId];
+            if (driver) {
+              const jobHours = Math.ceil((job.completesAtGameSeconds - job.startedAtGameSeconds) / 3600);
+              driver.hoursWorkedToday = (driver.hoursWorkedToday || 0) + jobHours;
             }
           });
         });
