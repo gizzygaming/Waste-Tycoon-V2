@@ -1,6 +1,6 @@
-import React from 'react';
-import { useGameStore, formatCurrency } from '../game/store/useGameStore';
-import { Store, AlertTriangle, TrendingUp, Package } from 'lucide-react';
+import React, { useState } from 'react';
+import { useGameStore, formatCurrency, MATERIAL_PRICES } from '../game/store/useGameStore';
+import { Store, AlertTriangle, TrendingUp, Package, Truck, DollarSign } from 'lucide-react';
 
 const MATERIAL_NAMES = {
   sandstone: 'Sandstone',
@@ -19,7 +19,9 @@ const MATERIAL_NAMES = {
 };
 
 export const MarketplacePage = () => {
-  const { game } = useGameStore();
+  const { game, sellMaterial } = useGameStore();
+  const [sellQuantity, setSellQuantity] = useState({});
+  const [sellError, setSellError] = useState(null);
   
   if (!game?.ui?.hasUnlockedGame) {
     return (
@@ -27,9 +29,7 @@ export const MarketplacePage = () => {
         <div className="text-center">
           <AlertTriangle size={48} className="mx-auto mb-4 text-[var(--primary)]" />
           <div className="font-heading text-xl text-[var(--text-main)]">MARKETPLACE LOCKED</div>
-          <div className="text-[var(--text-muted)] mt-2">
-            Purchase your first depot to unlock the marketplace.
-          </div>
+          <div className="text-[var(--text-muted)] mt-2">Purchase your first depot to unlock the marketplace.</div>
         </div>
       </div>
     );
@@ -37,20 +37,64 @@ export const MarketplacePage = () => {
   
   const prices = Object.values(game.marketplace.prices);
   
-  // Calculate total inventory across all facilities
-  const totalInventory = {};
-  Object.values(game.marketplace.inventoryTonnesByFacility).forEach((facilityInv) => {
-    Object.entries(facilityInv).forEach(([materialId, tonnes]) => {
-      totalInventory[materialId] = (totalInventory[materialId] || 0) + tonnes;
+  // Calculate inventory by facility
+  const inventoryByFacility = {};
+  let totalValue = 0;
+  
+  Object.entries(game.marketplace.inventoryTonnesByFacility).forEach(([facilityId, inventory]) => {
+    const facility = game.facilities.facilities[facilityId];
+    if (!facility) return;
+    
+    const facilityInventory = [];
+    Object.entries(inventory).forEach(([materialId, tonnes]) => {
+      if (tonnes > 0) {
+        const price = MATERIAL_PRICES[materialId]?.sell || 0;
+        const value = tonnes * price;
+        totalValue += value;
+        facilityInventory.push({ materialId, tonnes, price, value });
+      }
     });
+    
+    if (facilityInventory.length > 0) {
+      inventoryByFacility[facilityId] = {
+        facility,
+        inventory: facilityInventory,
+      };
+    }
   });
+  
+  const handleSell = (facilityId, materialId, maxTonnes) => {
+    const key = `${facilityId}-${materialId}`;
+    const quantity = parseFloat(sellQuantity[key]) || maxTonnes;
+    
+    if (quantity <= 0 || quantity > maxTonnes) {
+      setSellError('Invalid quantity');
+      return;
+    }
+    
+    const result = sellMaterial(facilityId, materialId, quantity);
+    if (result.success) {
+      setSellQuantity({ ...sellQuantity, [key]: '' });
+      setSellError(null);
+    } else {
+      setSellError(result.error);
+    }
+  };
   
   return (
     <div className="p-6" data-testid="marketplace-page">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="font-heading text-3xl font-black text-[var(--text-main)]">MARKETPLACE</h1>
-        <p className="text-[var(--text-muted)] mt-1">View material prices and manage inventory</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="font-heading text-3xl font-black text-[var(--text-main)]">MARKETPLACE</h1>
+          <p className="text-[var(--text-muted)] mt-1">View prices and sell your materials</p>
+        </div>
+        <div className="card bg-[var(--success)]/10 border-[var(--success)]">
+          <div className="p-4">
+            <div className="text-xs text-[var(--text-muted)] uppercase">Total Inventory Value</div>
+            <div className="font-mono text-2xl font-bold text-[var(--success)]">{formatCurrency(totalValue)}</div>
+          </div>
+        </div>
       </div>
       
       {/* Info Banner */}
@@ -58,23 +102,32 @@ export const MarketplacePage = () => {
         <div className="p-4 flex items-center gap-4">
           <TrendingUp size={24} className="text-[var(--secondary)]" />
           <div>
-            <div className="text-[var(--text-main)] font-bold">Selling Materials</div>
+            <div className="text-[var(--text-main)] font-bold">Material Trading</div>
             <div className="text-xs text-[var(--text-muted)]">
-              To sell materials, dispatch a delivery job from your yard to a buyer. Prices shown are per tonne.
+              Materials are produced by quarries (500t/day) and stored at your facilities. Sell directly from here or dispatch deliveries for larger orders.
             </div>
           </div>
         </div>
       </div>
       
+      {sellError && (
+        <div className="bg-[var(--danger)]/10 border border-[var(--danger)] p-3 mb-6 text-[var(--danger)] text-sm">
+          {sellError}
+        </div>
+      )}
+      
       <div className="grid grid-cols-2 gap-6">
         {/* Prices */}
         <div>
-          <h2 className="font-heading text-xl font-bold text-[var(--text-main)] mb-4">MATERIAL PRICES</h2>
+          <h2 className="font-heading text-xl font-bold text-[var(--text-main)] mb-4 flex items-center gap-2">
+            <DollarSign size={20} />
+            MATERIAL PRICES
+          </h2>
           <div className="card">
             <div className="card-header grid grid-cols-3 text-xs text-[var(--text-muted)] uppercase tracking-widest">
               <span>Material</span>
-              <span className="text-right">Buy Price</span>
-              <span className="text-right">Sell Price</span>
+              <span className="text-right">Buy</span>
+              <span className="text-right">Sell</span>
             </div>
             <div className="divide-y divide-[var(--border)]">
               {prices.map((price) => (
@@ -87,10 +140,10 @@ export const MarketplacePage = () => {
                     {MATERIAL_NAMES[price.materialId] || price.materialId}
                   </span>
                   <span className="font-mono text-right text-[var(--text-muted)]">
-                    {price.buy ? formatCurrency(price.buy) : '-'}
+                    {price.buy ? `${formatCurrency(price.buy)}/t` : '-'}
                   </span>
-                  <span className="font-mono text-right text-[var(--success)]">
-                    {formatCurrency(price.sell)}
+                  <span className="font-mono text-right text-[var(--success)] font-bold">
+                    {formatCurrency(price.sell)}/t
                   </span>
                 </div>
               ))}
@@ -100,46 +153,70 @@ export const MarketplacePage = () => {
         
         {/* Inventory */}
         <div>
-          <h2 className="font-heading text-xl font-bold text-[var(--text-main)] mb-4">YOUR INVENTORY</h2>
-          {Object.keys(totalInventory).length > 0 ? (
-            <div className="card">
-              <div className="card-header grid grid-cols-3 text-xs text-[var(--text-muted)] uppercase tracking-widest">
-                <span>Material</span>
-                <span className="text-right">Tonnes</span>
-                <span className="text-right">Value</span>
-              </div>
-              <div className="divide-y divide-[var(--border)]">
-                {Object.entries(totalInventory).map(([materialId, tonnes]) => {
-                  const price = game.marketplace.prices[materialId];
-                  const value = tonnes * (price?.sell || 0);
-                  
-                  return (
-                    <div 
-                      key={materialId} 
-                      className="grid grid-cols-3 p-4"
-                      data-testid={`inventory-${materialId}`}
-                    >
-                      <span className="text-[var(--text-main)] font-medium">
-                        {MATERIAL_NAMES[materialId] || materialId}
-                      </span>
-                      <span className="font-mono text-right text-[var(--text-main)]">
-                        {tonnes.toFixed(1)}t
-                      </span>
-                      <span className="font-mono text-right text-[var(--success)]">
-                        {formatCurrency(value)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+          <h2 className="font-heading text-xl font-bold text-[var(--text-main)] mb-4 flex items-center gap-2">
+            <Package size={20} />
+            YOUR INVENTORY
+          </h2>
+          
+          {Object.keys(inventoryByFacility).length > 0 ? (
+            <div className="space-y-4">
+              {Object.entries(inventoryByFacility).map(([facilityId, { facility, inventory }]) => (
+                <div key={facilityId} className="card">
+                  <div className="card-header">
+                    <h3 className="font-heading font-bold text-[var(--text-main)]">{facility.name}</h3>
+                  </div>
+                  <div className="divide-y divide-[var(--border)]">
+                    {inventory.map(({ materialId, tonnes, price, value }) => {
+                      const key = `${facilityId}-${materialId}`;
+                      return (
+                        <div key={materialId} className="p-4" data-testid={`inventory-${facilityId}-${materialId}`}>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-[var(--text-main)] font-medium">
+                              {MATERIAL_NAMES[materialId] || materialId}
+                            </span>
+                            <span className="font-mono text-[var(--success)]">
+                              {formatCurrency(value)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1">
+                              <div className="text-xs text-[var(--text-muted)] mb-1">
+                                {tonnes.toFixed(1)}t @ {formatCurrency(price)}/t
+                              </div>
+                              <div className="flex gap-2">
+                                <input
+                                  type="number"
+                                  placeholder={`Max ${tonnes.toFixed(0)}t`}
+                                  value={sellQuantity[key] || ''}
+                                  onChange={(e) => setSellQuantity({ ...sellQuantity, [key]: e.target.value })}
+                                  className="flex-1 py-1 px-2 text-sm"
+                                  max={tonnes}
+                                  min={1}
+                                />
+                                <button
+                                  onClick={() => handleSell(facilityId, materialId, tonnes)}
+                                  className="btn-primary py-1 px-4 text-sm"
+                                  data-testid={`sell-${key}`}
+                                >
+                                  SELL
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="card">
-              <div className="p-8 text-center">
+              <div className="p-12 text-center">
                 <Package size={48} className="mx-auto mb-4 text-[var(--muted)]" />
                 <div className="text-[var(--text-muted)]">No materials in inventory</div>
                 <div className="text-xs text-[var(--muted)] mt-2">
-                  Materials are stored at yards and quarries
+                  Buy a quarry to start producing materials (500t/day)
                 </div>
               </div>
             </div>
