@@ -44,53 +44,53 @@ export const ContractsPage = () => {
   const potentialEarnings = activeContracts.reduce((sum, c) => sum + c.payout, 0);
   
   return (
-    <div className="p-6" data-testid="contracts-page">
+    <div className="p-3 lg:p-6" data-testid="contracts-page">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 lg:mb-6">
         <div>
-          <h1 className="font-heading text-3xl font-black text-[var(--text-main)]">CONTRACTS</h1>
-          <p className="text-[var(--text-muted)] mt-1">Accept jobs and earn money</p>
+          <h1 className="font-heading text-2xl lg:text-3xl font-black text-[var(--text-main)]">CONTRACTS</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Accept jobs and earn money</p>
         </div>
         <button 
           onClick={() => generateContracts(5)}
-          className="btn-secondary flex items-center gap-2"
+          className="btn-secondary flex items-center justify-center gap-2 text-sm"
           data-testid="refresh-contracts"
         >
           <RefreshCw size={16} />
-          GET NEW CONTRACTS
+          <span className="hidden sm:inline">GET NEW</span> CONTRACTS
         </button>
       </div>
       
       {/* Stats Bar */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4 mb-4 lg:mb-6">
         <div className="card">
-          <div className="p-4">
-            <div className="text-xs text-[var(--text-muted)] uppercase tracking-widest">Available</div>
-            <div className="font-mono text-3xl font-bold text-[var(--secondary)] mt-1">
+          <div className="p-3 lg:p-4">
+            <div className="text-[10px] lg:text-xs text-[var(--text-muted)] uppercase tracking-widest">Available</div>
+            <div className="font-mono text-xl lg:text-3xl font-bold text-[var(--secondary)] mt-1">
               {availableContracts.length}
             </div>
           </div>
         </div>
         <div className="card">
-          <div className="p-4">
-            <div className="text-xs text-[var(--text-muted)] uppercase tracking-widest">Active</div>
-            <div className="font-mono text-3xl font-bold text-[var(--primary)] mt-1">
+          <div className="p-3 lg:p-4">
+            <div className="text-[10px] lg:text-xs text-[var(--text-muted)] uppercase tracking-widest">Active</div>
+            <div className="font-mono text-xl lg:text-3xl font-bold text-[var(--primary)] mt-1">
               {activeContracts.length}
             </div>
           </div>
         </div>
         <div className="card">
-          <div className="p-4">
-            <div className="text-xs text-[var(--text-muted)] uppercase tracking-widest">Pending Payment</div>
-            <div className="font-mono text-2xl font-bold text-[var(--accent)] mt-1">
+          <div className="p-3 lg:p-4">
+            <div className="text-[10px] lg:text-xs text-[var(--text-muted)] uppercase tracking-widest">Pending</div>
+            <div className="font-mono text-lg lg:text-2xl font-bold text-[var(--accent)] mt-1">
               {formatCurrency(potentialEarnings)}
             </div>
           </div>
         </div>
         <div className="card">
-          <div className="p-4">
-            <div className="text-xs text-[var(--text-muted)] uppercase tracking-widest">Total Earned</div>
-            <div className="font-mono text-2xl font-bold text-[var(--success)] mt-1">
+          <div className="p-3 lg:p-4">
+            <div className="text-[10px] lg:text-xs text-[var(--text-muted)] uppercase tracking-widest">Earned</div>
+            <div className="font-mono text-lg lg:text-2xl font-bold text-[var(--success)] mt-1">
               {formatCurrency(totalEarnings)}
             </div>
           </div>
@@ -98,16 +98,16 @@ export const ContractsPage = () => {
       </div>
       
       {/* Filter Tabs */}
-      <div className="flex gap-2 mb-6 bg-[var(--surface)] p-1">
+      <div className="flex gap-1 lg:gap-2 mb-4 lg:mb-6 bg-[var(--surface)] p-1">
         {[
           { id: 'available', label: 'Available', count: availableContracts.length },
           { id: 'active', label: 'Active', count: activeContracts.length },
-          { id: 'completed', label: 'Completed', count: completedContracts.length },
+          { id: 'completed', label: 'Done', count: completedContracts.length },
         ].map(f => (
           <button
             key={f.id}
             onClick={() => setFilter(f.id)}
-            className={`flex-1 py-2 px-4 font-bold uppercase text-sm transition-colors ${
+            className={`flex-1 py-2 px-2 lg:px-4 font-bold uppercase text-xs lg:text-sm transition-colors ${
               filter === f.id 
                 ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
                 : 'text-[var(--text-muted)] hover:bg-[var(--surface-highlight)]'
@@ -121,7 +121,7 @@ export const ContractsPage = () => {
       
       {/* Contracts Grid */}
       {filteredContracts.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 lg:gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredContracts.map((contract) => (
             <ContractCard
               key={contract.id}
