@@ -84,6 +84,50 @@ export const MarketplacePage = () => {
     }
   };
   
+  const handleScheduleDelivery = (facilityId, materialId, maxTonnes) => {
+    const key = `${facilityId}-${materialId}`;
+    const quantity = parseFloat(sellQuantity[key]) || maxTonnes;
+    const driverId = selectedDriver[key];
+    const vehicleId = selectedVehicle[key];
+    
+    if (quantity <= 0 || quantity > maxTonnes) {
+      setSellError('Invalid quantity');
+      return;
+    }
+    
+    if (!driverId) {
+      setSellError('Select a driver');
+      return;
+    }
+    
+    if (!vehicleId) {
+      setSellError('Select a vehicle');
+      return;
+    }
+    
+    const result = scheduleMaterialDelivery(facilityId, materialId, quantity, driverId, vehicleId);
+    if (result.success) {
+      setSellQuantity({ ...sellQuantity, [key]: '' });
+      setDeliveryMode({ ...deliveryMode, [key]: false });
+      setSelectedDriver({ ...selectedDriver, [key]: '' });
+      setSelectedVehicle({ ...selectedVehicle, [key]: '' });
+      setSellError(null);
+    } else {
+      setSellError(result.error);
+    }
+  };
+  
+  // Get available drivers and vehicles
+  const drivers = Object.values(game.staff.staff).filter(s => s.role === 'driver');
+  const vehicles = Object.values(game.assets.physical).filter(a => a.kind === 'vehicle');
+  const activeJobs = Object.values(game.dispatch.activeJobs);
+  
+  const dispatchedDriverIds = new Set(activeJobs.map(j => j.driverId));
+  const dispatchedVehicleIds = new Set(activeJobs.map(j => j.vehicleAssetId));
+  
+  const availableDrivers = drivers.filter(d => !dispatchedDriverIds.has(d.id));
+  const availableVehicles = vehicles.filter(v => !dispatchedVehicleIds.has(v.id) && !v.inRepair && v.condition >= 10);
+  
   return (
     <div className="p-3 lg:p-6" data-testid="marketplace-page">
       {/* Header */}
